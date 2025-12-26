@@ -3608,10 +3608,12 @@ resetAllViewStates();
             } else if (!isCurrentlyEdge) {
                 previousGroundPosition = getCurrentViewPosition();
                 resetAllViewStates();
-resetAllViewStates();
                 isUnderworldView = false;
                 isEdgeView = true;
                 groundViewAngles = { pitch: 0, yaw: Math.PI };
+                camera.fov = groundViewFOV;
+                camera.updateProjectionMatrix();
+                isGroundView = true;
                 isGroundToGroundTransition = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
@@ -3642,8 +3644,12 @@ resetAllViewStates();
             } else if (!isCurrentlyMid) {
                 previousGroundPosition = getCurrentViewPosition();
                 resetAllViewStates();
+                isUnderworldView = false;
                 isMidView = true;
                 groundViewAngles = { pitch: 0.1, yaw: 0 };
+                camera.fov = groundViewFOV;
+                camera.updateProjectionMatrix();
+                isGroundView = true;
                 isGroundToGroundTransition = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
