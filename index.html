@@ -1865,6 +1865,16 @@ function calculateLowerFimbulwinterIntensity() {
 }
 
 function updateUpperFimbulwinter() {
+    // Only build intensity when in upper ground-level views
+    const inUpperGroundView = isGroundView && !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;
+    
+    if (!inUpperGroundView) {
+        upperFimbulwinterIntensity = 0;
+        upperFimbulwinterActive = false;
+        upperFimbulShiverIntensity = 0;
+        return;
+    }
+    
     const targetIntensity = calculateUpperFimbulwinterIntensity();
     
     if (targetIntensity > 0.05) {
@@ -1912,6 +1922,16 @@ function updateUpperFimbulwinter() {
 }
 
 function updateLowerFimbulwinter() {
+    // Only build intensity when in underworld ground-level views
+    const inLowerGroundView = isGroundView && (isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView);
+    
+    if (!inLowerGroundView) {
+        lowerFimbulwinterIntensity = 0;
+        lowerFimbulwinterActive = false;
+        lowerFimbulShiverIntensity = 0;
+        return;
+    }
+    
     // INDEPENDENT SYSTEM - duplicated logic, no sharing
     const targetIntensity = calculateLowerFimbulwinterIntensity();
     
