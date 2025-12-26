@@ -67,6 +67,7 @@
 <canvas id="upper-frost-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 51;"></canvas>
 <canvas id="under-snow-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50;"></canvas>
 <canvas id="under-frost-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 51;"></canvas>
+<canvas id="fimbul-frost-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 51;"></canvas>
 <canvas id="lens-flare-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 52;"></canvas>
     
 <div id="grid-tooltip" style="position: absolute; display: none; background: rgba(0,0,0,0.9); border: 2px solid #ffdd44; border-radius: 10px; padding: 12px 16px; font-size: 14px; pointer-events: none; z-index: 1000; min-width: 220px;">
@@ -355,8 +356,29 @@ const SHIVER_START_TIME = 2500; // Start shivering after 2.5 seconds
 const SHIVER_MAX_TIME = 30000; // Max shiver at 30 seconds
 const SHIVER_MAX_INTENSITY = 25; // Max camera shake in units
 let upperShiverIntensity = 0;
+// ============ FIMBULWINTER SYSTEM ============
+// Upper World - triggered by dying sun/moon
+let upperFimbulwinterActive = false;
+let upperFimbulwinterIntensity = 0;
+let upperFimbulwinterStartTime = 0;
+
+// Underworld - triggered by dying underworld sun/moon (independent system)
+let lowerFimbulwinterActive = false;
+let lowerFimbulwinterIntensity = 0;
+let lowerFimbulwinterStartTime = 0;
+
+// Fimbulwinter thresholds (when cold begins)
+const FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD = 0.8;
+const FIMBULWINTER_SUN_SIZE_THRESHOLD = 100;
+const FIMBULWINTER_MOON_MULTIPLIER = 0.3;
 let underShiverIntensity = 0;
+// Fimbulwinter shiver (camera shake from cold)
+let upperFimbulShiverIntensity = 0;
+let lowerFimbulShiverIntensity = 0;
+const FIMBUL_SHIVER_START_INTENSITY = 0.15;
+const FIMBUL_SHIVER_MAX = 25;
 // ============ LENS FLARE SYSTEM ============
+let fimbulFrostCanvas, fimbulFrostCtx;
 let lensFlareCanvas, lensFlareCtx;
 const FLARE_THRESHOLD = 0.7; // How directly you need to look at sun (lower = wider angle)
 const FLARE_MAX_INTENSITY = 0.4; // Maximum flare opacity
@@ -1791,6 +1813,306 @@ function spawnSnowflake(isUnderworld) {
     };
 }
 
+// ============ FIMBULWINTER CALCULATION FUNCTIONS ============
+// These calculate intensity based on sun/moon state - NO CAMERA CODE
+
+function calculateUpperFimbulwinterIntensity() {
+    // Skip if sun is hidden entirely (user toggle, not dying)
+    if (!sunVisible) return 0;
+    
+    // Calculate sun weakness (0 = full power, 1 = completely dead)
+    const sunBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - SUN_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
+    const sunSizeWeakness = Math.max(0, (FIMBULWINTER_SUN_SIZE_THRESHOLD - SUN_SIZE) / FIMBULWINTER_SUN_SIZE_THRESHOLD);
+    
+    // Combined sun weakness (either being low triggers it)
+    let sunWeakness = Math.max(sunBrightnessWeakness, sunSizeWeakness);
+    
+    // Moon factor - if moon is also dark (interference enabled and low), make it worse
+    let moonPenalty = 0;
+    if (moonVisible && moonInterferenceEnabled) {
+        // moonRadialFactor is calculated in updateSunAndMoon - we need to recalculate here
+        const moonRadialFactor = 0.5 + 0.5 * Math.sin(moonRadialPhase);
+        // When moonRadialFactor > 0.7, moon is getting dark
+        if (moonRadialFactor > 0.7) {
+            moonPenalty = (moonRadialFactor - 0.7) / 0.3 * FIMBULWINTER_MOON_MULTIPLIER;
+        }
+    }
+    
+    // Final intensity: sun weakness + moon penalty, capped at 1
+    return Math.min(1, sunWeakness + moonPenalty);
+}
+
+function calculateLowerFimbulwinterIntensity() {
+    // INDEPENDENT SYSTEM - uses underworld sun/moon only
+    if (!underworldSunVisible) return 0;
+    
+    // Calculate underworld sun weakness
+    const uSunBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - USUN_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
+    const uSunSizeWeakness = Math.max(0, (FIMBULWINTER_SUN_SIZE_THRESHOLD - USUN_SIZE) / FIMBULWINTER_SUN_SIZE_THRESHOLD);
+    
+    let uSunWeakness = Math.max(uSunBrightnessWeakness, uSunSizeWeakness);
+    
+    // Underworld moon factor
+    let uMoonPenalty = 0;
+    if (underworldMoonVisible && underworldMoonInterferenceEnabled) {
+        const uMoonRadialFactor = 0.5 + 0.5 * Math.sin(underworldMoonRadialPhase);
+        if (uMoonRadialFactor > 0.7) {
+            uMoonPenalty = (uMoonRadialFactor - 0.7) / 0.3 * FIMBULWINTER_MOON_MULTIPLIER;
+        }
+    }
+    
+    return Math.min(1, uSunWeakness + uMoonPenalty);
+}
+
+function updateUpperFimbulwinter() {
+    const targetIntensity = calculateUpperFimbulwinterIntensity();
+    
+    if (targetIntensity > 0.05) {
+        // Sun is weak - should be freezing
+        if (!upperFimbulwinterActive) {
+            upperFimbulwinterActive = true;
+            upperFimbulwinterStartTime = Date.now();
+        }
+        
+        // Time factor limits how fast frost can BUILD (60 sec to full)
+        const elapsed = Date.now() - upperFimbulwinterStartTime;
+        const timeFactor = Math.min(1, elapsed / 60000);
+        const maxAllowedByTime = targetIntensity * timeFactor;
+        
+        // Intensity creeps toward maxAllowedByTime
+        if (upperFimbulwinterIntensity < maxAllowedByTime) {
+            // Freezing
+            upperFimbulwinterIntensity += 0.001;
+            if (upperFimbulwinterIntensity > maxAllowedByTime) {
+                upperFimbulwinterIntensity = maxAllowedByTime;
+            }
+        } else if (upperFimbulwinterIntensity > maxAllowedByTime) {
+            // Sun got brighter but still weak - slow thaw toward new ceiling
+            upperFimbulwinterIntensity -= 0.0002;
+        }
+    } else {
+        // Sun is strong - full thaw
+        if (upperFimbulwinterIntensity > 0) {
+            upperFimbulwinterIntensity -= 0.0002;
+            if (upperFimbulwinterIntensity <= 0) {
+                upperFimbulwinterIntensity = 0;
+                upperFimbulwinterActive = false;
+            }
+        }
+    }
+    
+    // Calculate shiver based on frost intensity
+    if (upperFimbulwinterIntensity > FIMBUL_SHIVER_START_INTENSITY) {
+        // Shiver scales from 0 at 20% frost to max at 100% frost
+        const shiverProgress = (upperFimbulwinterIntensity - FIMBUL_SHIVER_START_INTENSITY) / (1 - FIMBUL_SHIVER_START_INTENSITY);
+        upperFimbulShiverIntensity = shiverProgress * FIMBUL_SHIVER_MAX;
+    } else {
+        upperFimbulShiverIntensity = 0;
+    }
+}
+
+function updateLowerFimbulwinter() {
+    // INDEPENDENT SYSTEM - duplicated logic, no sharing
+    const targetIntensity = calculateLowerFimbulwinterIntensity();
+    
+    if (targetIntensity > 0.05) {
+        // Underworld sun is weak - should be freezing
+        if (!lowerFimbulwinterActive) {
+            lowerFimbulwinterActive = true;
+            lowerFimbulwinterStartTime = Date.now();
+        }
+        
+        const elapsed = Date.now() - lowerFimbulwinterStartTime;
+        const timeFactor = Math.min(1, elapsed / 60000);
+        const maxAllowedByTime = targetIntensity * timeFactor;
+        
+        if (lowerFimbulwinterIntensity < maxAllowedByTime) {
+            // Freezing
+            lowerFimbulwinterIntensity += 0.001;
+            if (lowerFimbulwinterIntensity > maxAllowedByTime) {
+                lowerFimbulwinterIntensity = maxAllowedByTime;
+            }
+        } else if (lowerFimbulwinterIntensity > maxAllowedByTime) {
+            // Underworld sun got brighter but still weak - slow thaw
+            lowerFimbulwinterIntensity -= 0.0002;
+        }
+    } else {
+        // Underworld sun is strong - full thaw
+        if (lowerFimbulwinterIntensity > 0) {
+            lowerFimbulwinterIntensity -= 0.0002;
+            if (lowerFimbulwinterIntensity <= 0) {
+                lowerFimbulwinterIntensity = 0;
+                lowerFimbulwinterActive = false;
+            }
+        }
+    }
+    
+    // Calculate shiver based on frost intensity
+    if (lowerFimbulwinterIntensity > FIMBUL_SHIVER_START_INTENSITY) {
+        // Shiver scales from 0 at 20% frost to max at 100% frost
+        const shiverProgress = (lowerFimbulwinterIntensity - FIMBUL_SHIVER_START_INTENSITY) / (1 - FIMBUL_SHIVER_START_INTENSITY);
+        lowerFimbulShiverIntensity = shiverProgress * FIMBUL_SHIVER_MAX;
+    } else {
+        lowerFimbulShiverIntensity = 0;
+    }
+}
+
+function updateFimbulwinterFrost() {
+    if (!fimbulFrostCtx || !fimbulFrostCanvas) return;
+    
+    // No frost in orbit view
+    if (!isGroundView) {
+        fimbulFrostCtx.clearRect(0, 0, fimbulFrostCanvas.width, fimbulFrostCanvas.height);
+        return;
+    }
+    
+    // Determine which intensity to use based on current view
+    // Underworld views use lower intensity, all others use upper
+    const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+    const intensity = inUnderworldView ? lowerFimbulwinterIntensity : upperFimbulwinterIntensity;
+    
+    // Clear if no effect
+    if (intensity <= 0) {
+        fimbulFrostCtx.clearRect(0, 0, fimbulFrostCanvas.width, fimbulFrostCanvas.height);
+        return;
+    }
+    
+    fimbulFrostCtx.clearRect(0, 0, fimbulFrostCanvas.width, fimbulFrostCanvas.height);
+    
+    const w = fimbulFrostCanvas.width;
+    const h = fimbulFrostCanvas.height;
+    
+    // Fimbulwinter frost is MORE aggressive than edge frost
+    // It covers the entire screen, not just edges
+    const cornerRadius = Math.min(w, h) * 1.5 * intensity;
+    
+    // Color tint - upper is white-blue, underworld is deeper blue-purple
+    const frostColor = inUnderworldView ? 'rgba(80, 100, 180,' : 'rgba(200, 220, 255,';
+    const iceColor = inUnderworldView ? 'rgba(50, 70, 160,' : 'rgba(170, 200, 240,';
+    
+    // Corner frost gradients - larger and more intense than edge frost
+    let gradient;
+    
+    // Top-left
+    gradient = fimbulFrostCtx.createRadialGradient(0, 0, 0, 0, 0, cornerRadius);
+    gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
+    gradient.addColorStop(0.4, frostColor + (intensity * 0.5) + ')');
+    gradient.addColorStop(0.7, frostColor + (intensity * 0.2) + ')');
+    gradient.addColorStop(1, frostColor + '0)');
+    fimbulFrostCtx.fillStyle = gradient;
+    fimbulFrostCtx.fillRect(0, 0, cornerRadius, cornerRadius);
+    
+    // Top-right
+    gradient = fimbulFrostCtx.createRadialGradient(w, 0, 0, w, 0, cornerRadius);
+    gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
+    gradient.addColorStop(0.4, frostColor + (intensity * 0.5) + ')');
+    gradient.addColorStop(0.7, frostColor + (intensity * 0.2) + ')');
+    gradient.addColorStop(1, frostColor + '0)');
+    fimbulFrostCtx.fillStyle = gradient;
+    fimbulFrostCtx.fillRect(w - cornerRadius, 0, cornerRadius, cornerRadius);
+    
+    // Bottom-left
+    gradient = fimbulFrostCtx.createRadialGradient(0, h, 0, 0, h, cornerRadius);
+    gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
+    gradient.addColorStop(0.4, frostColor + (intensity * 0.5) + ')');
+    gradient.addColorStop(0.7, frostColor + (intensity * 0.2) + ')');
+    gradient.addColorStop(1, frostColor + '0)');
+    fimbulFrostCtx.fillStyle = gradient;
+    fimbulFrostCtx.fillRect(0, h - cornerRadius, cornerRadius, cornerRadius);
+    
+    // Bottom-right
+    gradient = fimbulFrostCtx.createRadialGradient(w, h, 0, w, h, cornerRadius);
+    gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
+    gradient.addColorStop(0.4, frostColor + (intensity * 0.5) + ')');
+    gradient.addColorStop(0.7, frostColor + (intensity * 0.2) + ')');
+    gradient.addColorStop(1, frostColor + '0)');
+    fimbulFrostCtx.fillStyle = gradient;
+    fimbulFrostCtx.fillRect(w - cornerRadius, h - cornerRadius, cornerRadius, cornerRadius);
+    
+    // Edge frost strips - thicker than edge view frost
+    const edgeWidth = 300 * intensity;
+    
+    // Top edge
+    gradient = fimbulFrostCtx.createLinearGradient(0, 0, 0, edgeWidth);
+    gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
+    gradient.addColorStop(1, iceColor + '0)');
+    fimbulFrostCtx.fillStyle = gradient;
+    fimbulFrostCtx.fillRect(0, 0, w, edgeWidth);
+    
+    // Bottom edge
+    gradient = fimbulFrostCtx.createLinearGradient(0, h, 0, h - edgeWidth);
+    gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
+    gradient.addColorStop(1, iceColor + '0)');
+    fimbulFrostCtx.fillStyle = gradient;
+    fimbulFrostCtx.fillRect(0, h - edgeWidth, w, edgeWidth);
+    
+    // Left edge
+    gradient = fimbulFrostCtx.createLinearGradient(0, 0, edgeWidth, 0);
+    gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
+    gradient.addColorStop(1, iceColor + '0)');
+    fimbulFrostCtx.fillStyle = gradient;
+    fimbulFrostCtx.fillRect(0, 0, edgeWidth, h);
+    
+    // Right edge
+    gradient = fimbulFrostCtx.createLinearGradient(w, 0, w - edgeWidth, 0);
+    gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
+    gradient.addColorStop(1, iceColor + '0)');
+    fimbulFrostCtx.fillStyle = gradient;
+    fimbulFrostCtx.fillRect(w - edgeWidth, 0, edgeWidth, h);
+    
+    // At high intensity, add center vignette (world is truly dying)
+    if (intensity > 0.5) {
+        const vignetteIntensity = (intensity - 0.5) * 2; // 0 to 1 for intensity 0.5 to 1
+        gradient = fimbulFrostCtx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w, h) * 0.7);
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
+        gradient.addColorStop(1, frostColor + (vignetteIntensity * 0.4) + ')');
+        fimbulFrostCtx.fillStyle = gradient;
+        fimbulFrostCtx.fillRect(0, 0, w, h);
+    }
+    
+    // Ice crystal patterns at higher intensity
+    if (intensity > 0.3) {
+        const crystalCount = Math.floor(intensity * 50);
+        fimbulFrostCtx.strokeStyle = iceColor + (intensity * 0.5) + ')';
+        fimbulFrostCtx.lineWidth = 1;
+        
+        for (let i = 0; i < crystalCount; i++) {
+            // Crystals appear anywhere on screen during Fimbulwinter
+            const cx = Math.random() * w;
+            const cy = Math.random() * h;
+            
+            // Bias toward edges
+            const edgeBias = Math.random();
+            let finalX = cx, finalY = cy;
+            if (edgeBias < 0.6) {
+                // Push toward nearest edge
+                const distToLeft = cx;
+                const distToRight = w - cx;
+                const distToTop = cy;
+                const distToBottom = h - cy;
+                const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
+                
+                if (minDist === distToLeft) finalX = Math.random() * edgeWidth * 2;
+                else if (minDist === distToRight) finalX = w - Math.random() * edgeWidth * 2;
+                else if (minDist === distToTop) finalY = Math.random() * edgeWidth * 2;
+                else finalY = h - Math.random() * edgeWidth * 2;
+            }
+            
+            const size = 5 + Math.random() * 20 * intensity;
+            
+            // 6-point star crystal
+            fimbulFrostCtx.beginPath();
+            for (let j = 0; j < 6; j++) {
+                const angle = (j / 6) * Math.PI * 2;
+                fimbulFrostCtx.moveTo(finalX, finalY);
+                fimbulFrostCtx.lineTo(finalX + Math.cos(angle) * size, finalY + Math.sin(angle) * size);
+            }
+            fimbulFrostCtx.stroke();
+        }
+    }
+}
+
 function updateUpperEdgeCold() {
     const snowCanvas = document.getElementById('upper-snow-canvas');
     const frostCanvas = document.getElementById('upper-frost-canvas');
@@ -2066,6 +2388,13 @@ function stopUnderEdgeCold() {
     // Frost will fade in the update function
 }
 
+function initFimbulwinterFrost() {
+    fimbulFrostCanvas = document.getElementById('fimbul-frost-canvas');
+    fimbulFrostCanvas.width = window.innerWidth;
+    fimbulFrostCanvas.height = window.innerHeight;
+    fimbulFrostCtx = fimbulFrostCanvas.getContext('2d');
+}
+
 // ============ LENS FLARE SYSTEM FUNCTIONS ============
 function initLensFlare() {
     lensFlareCanvas = document.getElementById('lens-flare-canvas');
@@ -2089,8 +2418,8 @@ function updateLensFlare() {
     const cameraDir = new THREE.Vector3();
     camera.getWorldDirection(cameraDir);
     
-    // Check upper sun
-    if (sunMesh && sunVisible && sunMesh.visible) {
+// Check upper sun - no flare when sun is too dim
+if (sunMesh && sunVisible && sunMesh.visible && SUN_BRIGHTNESS > 0.5) {
         const toSun = new THREE.Vector3().subVectors(sunMesh.position, camera.position).normalize();
         const dot = cameraDir.dot(toSun);
         
@@ -2103,8 +2432,8 @@ function updateLensFlare() {
         }
     }
     
-    // Check underworld sun
-    if (underworldSunMesh && underworldSunVisible && underworldSunMesh.visible) {
+    // Check underworld sun - no flare when sun is too dim
+if (underworldSunMesh && underworldSunVisible && underworldSunMesh.visible && USUN_BRIGHTNESS > 0.5 && (isUnderworldView || isUSunView || isUMoonView)) {
         const toUSun = new THREE.Vector3().subVectors(underworldSunMesh.position, camera.position).normalize();
         const dot = cameraDir.dot(toUSun);
         
@@ -2354,15 +2683,22 @@ function updateUnderworldLuminaryLink() {
             // Update Sun position
             if (sunMesh && sunVisible) {
                 sunMesh.position.set(sunX, sunY, sunZ);
-                sunMesh.visible = true;
+                // Dim sun mesh based on brightness (normalize to 0-1 range, default 1.5)
+                const sunBrightnessFactor = Math.min(1, SUN_BRIGHTNESS / 1.5);
+    if (SUN_BRIGHTNESS < 0.2) {
+        // Go black at very low brightness (0.1 = minimum slider = full black)
+        const blackFactor = (SUN_BRIGHTNESS - 0.1) / 0.1;
+                    sunMesh.material.color.setRGB(blackFactor * sunBrightnessFactor, blackFactor * sunBrightnessFactor * 0.87, blackFactor * sunBrightnessFactor * 0.27);
+                } else {
+                    sunMesh.material.color.setRGB(sunBrightnessFactor, sunBrightnessFactor * 0.87, sunBrightnessFactor * 0.27);
+                }
+                sunMesh.visible = SUN_BRIGHTNESS > 0.05;
                 sunGlow.position.copy(sunMesh.position);
-                sunGlow.visible = true;
+                sunGlow.visible = SUN_BRIGHTNESS > 0.5;
+                sunGlow.material.opacity = sunBrightnessFactor;
                 sunHalo.position.copy(sunMesh.position);
-                sunHalo.visible = true;
-                sunLight.position.copy(sunMesh.position);
-                // In realistic mode, sun is the PRIMARY light source - much brighter
-                sunLight.intensity = realisticLighting ? SUN_BRIGHTNESS * 3 : SUN_BRIGHTNESS;
-                sunLight.distance = SUN_LIGHT_RADIUS; // User-controlled light reach
+sunHalo.visible = SUN_BRIGHTNESS > 0.5;
+                sunHalo.material.opacity = sunBrightnessFactor * 0.3;
             } else if (sunMesh) {
                 sunMesh.visible = false;
                 sunGlow.visible = false;
@@ -2370,8 +2706,23 @@ function updateUnderworldLuminaryLink() {
                 sunLight.intensity = 0;
             }
            
-            // Update ambient light based on realistic lighting mode
-            ambientLight.intensity = realisticLighting ? 0.02 : 0.3;
+            // Update ambient light based on realistic lighting mode AND Fimbulwinter
+            const baseFimbulIntensity = Math.max(upperFimbulwinterIntensity, lowerFimbulwinterIntensity);
+            if (baseFimbulIntensity > 0.1) {
+                // Shift ambient to cold blue as world freezes
+                const coldShift = Math.min(1, (baseFimbulIntensity - 0.1) / 0.6);
+                const r = 1.0 - coldShift * 0.4;
+                const g = 1.0 - coldShift * 0.2;
+                const b = 1.0;
+                ambientLight.color.setRGB(r, g, b);
+                // Also dim slightly as sun dies
+                const dimFactor = 1.0 - coldShift * 0.3;
+                ambientLight.intensity = (realisticLighting ? 0.02 : 0.3) * dimFactor;
+            } else {
+                // Normal warm-neutral ambient
+                ambientLight.color.setRGB(1, 1, 1);
+                ambientLight.intensity = realisticLighting ? 0.02 : 0.3;
+            }
            
             // Update Moon position with INTERFERENCE model
             // Moon LOW (radialFactor HIGH, close to strata) = MORE interference = DIMMER
@@ -2383,38 +2734,7 @@ function updateUnderworldLuminaryLink() {
             const moonEffectiveBrightness = MOON_BRIGHTNESS * moonInterferenceFactor;
             const moonGlowOpacity = moonInterferenceFactor;
             const moonHaloOpacity = moonInterferenceFactor * 0.25;
-           
-            if (moonMesh && moonVisible) {
-                moonMesh.position.set(moonX, moonY, moonZ);
-                moonMesh.visible = true;
-               
-                // Update moon emissive intensity based on interference
-                // At New Moon (lowest point), emissive drops to ZERO - complete darkness
-// Surface goes completely dark at New Moon - TRUE BLACK
-if (moonInterferenceFactor < 0.02) {
-    moonMesh.material.color.setRGB(0, 0, 0);
-} else {
-    const brightness = moonInterferenceFactor;
-    moonMesh.material.color.setRGB(brightness, brightness, brightness * 1.02);
-}
-               
-                moonGlow.position.copy(moonMesh.position);
-                moonGlow.visible = moonInterferenceFactor > 0.02;
-                moonGlow.material.opacity = moonGlowOpacity * 0.6 * moonInterferenceFactor;
-               
-                moonHalo.position.copy(moonMesh.position);
-                moonHalo.visible = moonInterferenceFactor > 0.02;
-                moonHalo.material.opacity = moonHaloOpacity * 1.4 * moonInterferenceFactor;
-               
-                moonLight.position.copy(moonMesh.position);
-                moonLight.intensity = realisticLighting ? moonEffectiveBrightness * 8 * moonInterferenceFactor : moonEffectiveBrightness * 4 * moonInterferenceFactor;
-                moonLight.distance = MOON_LIGHT_RADIUS;
-            } else if (moonMesh) {
-                moonMesh.visible = false;
-                moonGlow.visible = false;
-                moonHalo.visible = false;
-                moonLight.intensity = 0;
-            }
+            
                         // Update Sun/Moon coordinate displays
             if (sunMesh && sunVisible) {
                 // Project sun position onto shell for shell coordinates
@@ -2433,20 +2753,46 @@ if (moonInterferenceFactor < 0.02) {
             }
             
             if (moonMesh && moonVisible) {
-                // Project moon position onto shell for shell coordinates
-                const moonShellPoint = moonMesh.position.clone().normalize().multiplyScalar(SHELL_RADIUS);
-                const moonShellCoords = getShellCoordinates(moonShellPoint);
-                document.getElementById('moon-shell-coords').textContent = 
-                    `${moonShellCoords.quadrant} X:${moonShellCoords.x.toLocaleString()} Y:${moonShellCoords.y.toLocaleString()} ${moonShellCoords.zSymbol}:${moonShellCoords.z.toLocaleString()}`;
+                moonMesh.position.set(moonX, moonY, moonZ);
                 
-                // Moon strata coordinates (position above disk)
-                const moonStrataCoords = getStrataCoordinates(moonMesh.position);
-                document.getElementById('moon-strata-coords').textContent = 
-                    `${moonStrataCoords.quadrant} X:${moonStrataCoords.x.toLocaleString()} Y:${moonStrataCoords.y.toLocaleString()} Dist:${moonStrataCoords.distFromCenter.toLocaleString()}`;
-            } else {
-                document.getElementById('moon-shell-coords').textContent = '--';
-                document.getElementById('moon-strata-coords').textContent = '--';
-            }            // ============ UNDERWORLD LUMINARIES UPDATE ============
+                // Combine brightness slider AND interference factor
+                const moonBrightnessFactor = Math.min(1, MOON_BRIGHTNESS / 0.8);
+                const combinedMoonFactor = moonBrightnessFactor * moonInterferenceFactor;
+                
+                // Surface goes dark when either brightness is low OR interference is high
+                // Blood moon when sun is dying
+                let bloodRedFactor = 0;
+                if (SUN_BRIGHTNESS < 0.8 && SUN_BRIGHTNESS > 0.2) {
+                    bloodRedFactor = SUN_BRIGHTNESS > 0.5 
+                        ? 1 - ((SUN_BRIGHTNESS - 0.5) / 0.3)
+                        : (SUN_BRIGHTNESS - 0.2) / 0.3;
+                }
+                
+                // Fade to black as brightness slider approaches minimum (0.1)
+                const moonBlackFactor = MOON_BRIGHTNESS < 0.2 ? Math.max(0, (MOON_BRIGHTNESS - 0.1) / 0.1) : 1;
+                
+                if (combinedMoonFactor < 0.02 || moonBlackFactor <= 0) {
+                    moonMesh.material.color.setRGB(0, 0, 0);
+                } else {
+                    const r = combinedMoonFactor * (1 + bloodRedFactor * 0.5) * moonBlackFactor;
+                    const g = combinedMoonFactor * (1 - bloodRedFactor * 0.7) * moonBlackFactor;
+                    const b = combinedMoonFactor * (1.02 - bloodRedFactor * 0.9) * moonBlackFactor;
+                    moonMesh.material.color.setRGB(r, g, b);
+                }
+                moonMesh.visible = MOON_BRIGHTNESS > 0.05;
+               
+                moonGlow.position.copy(moonMesh.position);
+                moonGlow.visible = combinedMoonFactor > 0.02 && MOON_BRIGHTNESS > 0.1;
+                moonGlow.material.opacity = moonGlowOpacity * 0.6 * combinedMoonFactor;
+               
+                moonHalo.position.copy(moonMesh.position);
+moonHalo.visible = combinedMoonFactor > 0.02 && MOON_BRIGHTNESS > 0.5;
+                moonHalo.material.opacity = moonHaloOpacity * 1.4 * combinedMoonFactor;
+               
+                moonLight.position.copy(moonMesh.position);
+                moonLight.intensity = realisticLighting ? moonEffectiveBrightness * 8 * combinedMoonFactor : moonEffectiveBrightness * 4 * combinedMoonFactor;
+                moonLight.distance = MOON_LIGHT_RADIUS;
+            }          // ============ UNDERWORLD LUMINARIES UPDATE ============
             // Mirror physics of upper luminaries, positioned BELOW the disk
             
             underworldSunAngle += 0.001 * USUN_SPEED;
@@ -2519,43 +2865,72 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
             // Update Underworld Moon position
             if (underworldMoonMesh && underworldMoonVisible) {
                 underworldMoonMesh.position.set(uMoonX, uMoonY, uMoonZ);
-                underworldMoonMesh.visible = true;
                 
-                // Interference affects brightness - goes dark at "New" phase
-                if (uMoonInterferenceFactor < 0.02) {
-                    underworldMoonMesh.material.color.setRGB(0, 0, 0);
-                } else {
-                    const b = uMoonInterferenceFactor;
-                    underworldMoonMesh.material.color.setRGB(b * 0.13, b * 0.2, b * 0.67);
+                // Combine brightness slider AND interference factor
+                const uMoonBrightnessFactor = Math.min(1, UMOON_BRIGHTNESS / 0.8);
+                const combinedUMoonFactor = uMoonBrightnessFactor * uMoonInterferenceFactor;
+                
+                // Blood moon when underworld sun is dying
+                let uBloodRedFactor = 0;
+                if (USUN_BRIGHTNESS < 0.8 && USUN_BRIGHTNESS > 0.2) {
+                    uBloodRedFactor = USUN_BRIGHTNESS > 0.5 
+                        ? 1 - ((USUN_BRIGHTNESS - 0.5) / 0.3)
+                        : (USUN_BRIGHTNESS - 0.2) / 0.3;
                 }
                 
+                // Fade to black as brightness slider approaches minimum (0.1)
+                const uMoonBlackFactor = UMOON_BRIGHTNESS < 0.2 ? Math.max(0, (UMOON_BRIGHTNESS - 0.1) / 0.1) : 1;
+                
+                if (combinedUMoonFactor < 0.02 || uMoonBlackFactor <= 0) {
+                    underworldMoonMesh.material.color.setRGB(0, 0, 0);
+                } else {
+                    const r = combinedUMoonFactor * (0.13 + uBloodRedFactor * 0.87) * uMoonBlackFactor;
+                    const g = combinedUMoonFactor * (0.2 - uBloodRedFactor * 0.1) * uMoonBlackFactor;
+                    const b = combinedUMoonFactor * (0.67 - uBloodRedFactor * 0.6) * uMoonBlackFactor;
+                    underworldMoonMesh.material.color.setRGB(r, g, b);
+                }
+                underworldMoonMesh.visible = UMOON_BRIGHTNESS > 0.05;
+                
                 underworldMoonGlow.position.copy(underworldMoonMesh.position);
-                underworldMoonGlow.visible = uMoonInterferenceFactor > 0.02;
-                underworldMoonGlow.material.opacity = uMoonInterferenceFactor * 0.6;
+                underworldMoonGlow.visible = combinedUMoonFactor > 0.02 && UMOON_BRIGHTNESS > 0.5;
+                underworldMoonGlow.material.opacity = combinedUMoonFactor * 0.6;
                 
                 underworldMoonHalo.position.copy(underworldMoonMesh.position);
-                underworldMoonHalo.visible = uMoonInterferenceFactor > 0.02;
-                underworldMoonHalo.material.opacity = uMoonInterferenceFactor * 0.35;
+                underworldMoonHalo.visible = combinedUMoonFactor > 0.02 && UMOON_BRIGHTNESS > 0.5;
+                underworldMoonHalo.material.opacity = combinedUMoonFactor * 0.35;
                 
                 underworldMoonLight.position.copy(underworldMoonMesh.position);
-                underworldMoonLight.intensity = realisticLighting ? UMOON_BRIGHTNESS * 8 * uMoonInterferenceFactor : UMOON_BRIGHTNESS * 4 * uMoonInterferenceFactor;
+                underworldMoonLight.intensity = realisticLighting ? UMOON_BRIGHTNESS * 8 * combinedUMoonFactor : UMOON_BRIGHTNESS * 4 * combinedUMoonFactor;
                 underworldMoonLight.distance = UMOON_LIGHT_RADIUS;
-            } else if (underworldMoonMesh) {
-                underworldMoonMesh.visible = false;
-                underworldMoonGlow.visible = false;
-                underworldMoonHalo.visible = false;
-                underworldMoonLight.intensity = 0;
             }
                         // Update Underworld Sun/Moon coordinate displays
+            // Update Underworld Sun position
             if (underworldSunMesh && underworldSunVisible) {
-                const uSunShellPoint = underworldSunMesh.position.clone().normalize().multiplyScalar(SHELL_RADIUS);
-                const uSunShellCoords = getShellCoordinates(uSunShellPoint);
-                document.getElementById('usun-shell-coords').textContent = `${uSunShellCoords.quadrant} X:${uSunShellCoords.x.toLocaleString()} Y:${uSunShellCoords.y.toLocaleString()} ${uSunShellCoords.zSymbol}:${uSunShellCoords.z.toLocaleString()}`;
-                const uSunStrataCoords = getStrataCoordinates(underworldSunMesh.position);
-                document.getElementById('usun-strata-coords').textContent = `${uSunStrataCoords.quadrant} X:${uSunStrataCoords.x.toLocaleString()} Y:${uSunStrataCoords.y.toLocaleString()} Dist:${uSunStrataCoords.distFromCenter.toLocaleString()}`;
-            } else {
-                document.getElementById('usun-shell-coords').textContent = '--';
-                document.getElementById('usun-strata-coords').textContent = '--';
+                underworldSunMesh.position.set(uSunX, uSunY, uSunZ);
+                // Dim underworld sun mesh based on brightness (normalize to 0-1, default 1.5)
+                const uSunBrightnessFactor = Math.min(1, USUN_BRIGHTNESS / 1.5);
+    if (USUN_BRIGHTNESS < 0.2) {
+        // Go black at very low brightness (0.1 = minimum slider = full black)
+        const blackFactor = (USUN_BRIGHTNESS - 0.1) / 0.1;
+                    underworldSunMesh.material.color.setRGB(blackFactor * uSunBrightnessFactor, blackFactor * uSunBrightnessFactor * 0.13, blackFactor * uSunBrightnessFactor * 0.13);
+                } else {
+                    underworldSunMesh.material.color.setRGB(uSunBrightnessFactor, uSunBrightnessFactor * 0.13, uSunBrightnessFactor * 0.13);
+                }
+                underworldSunMesh.visible = USUN_BRIGHTNESS > 0.05;
+                underworldSunGlow.position.copy(underworldSunMesh.position);
+underworldSunGlow.visible = USUN_BRIGHTNESS > 0.5;
+                underworldSunGlow.material.opacity = uSunBrightnessFactor;
+                underworldSunHalo.position.copy(underworldSunMesh.position);
+                underworldSunHalo.visible = USUN_BRIGHTNESS > 0.05;
+                underworldSunHalo.material.opacity = uSunBrightnessFactor * 0.3;
+                underworldSunLight.position.copy(underworldSunMesh.position);
+                underworldSunLight.intensity = realisticLighting ? USUN_BRIGHTNESS * 3 : USUN_BRIGHTNESS;
+                underworldSunLight.distance = USUN_LIGHT_RADIUS;
+            } else if (underworldSunMesh) {
+                underworldSunMesh.visible = false;
+                underworldSunGlow.visible = false;
+                underworldSunHalo.visible = false;
+                underworldSunLight.intensity = 0;
             }
             
             if (underworldMoonMesh && underworldMoonVisible) {
@@ -2725,6 +3100,7 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
             }
         }
 initEdgeColdSystem();  
+initFimbulwinterFrost();
 initLensFlare();
 createStarAxis();
 createGeometry();
@@ -3746,17 +4122,25 @@ const scaleFactor = Math.min(4000, Math.max(200, camDist * 0.1));
 const scaleFactor = Math.min(4000, Math.max(200, camDist * 0.1));
                 gulfLabel2.scale.set(scaleFactor, scaleFactor * 0.375, 1);
             }
+            // Update Fimbulwinter systems (dying sun/moon cold)
+            updateUpperFimbulwinter();
+            updateLowerFimbulwinter();
+            updateFimbulwinterFrost();
             // Update edge cold systems
             updateUpperEdgeCold();
             updateUnderEdgeCold();
             updateLensFlare();
+
             
-            // Apply camera shiver at edge
-            if (upperShiverIntensity > 0 || underShiverIntensity > 0) {
-                const shiver = Math.max(upperShiverIntensity, underShiverIntensity);
-                camera.position.x += (Math.random() - 0.5) * shiver;
-                camera.position.y += (Math.random() - 0.5) * shiver * 0.5;
-                camera.position.z += (Math.random() - 0.5) * shiver;
+            // Apply camera shiver at edge OR from Fimbulwinter
+            const edgeShiver = Math.max(upperShiverIntensity, underShiverIntensity);
+            const fimbulShiver = Math.max(upperFimbulShiverIntensity, lowerFimbulShiverIntensity);
+            const totalShiver = Math.max(edgeShiver, fimbulShiver);
+            
+            if (totalShiver > 0 && isGroundView) {
+                camera.position.x += (Math.random() - 0.5) * totalShiver;
+                camera.position.y += (Math.random() - 0.5) * totalShiver * 0.5;
+                camera.position.z += (Math.random() - 0.5) * totalShiver;
             }
             renderer.render(scene, camera);
         }
@@ -3766,7 +4150,7 @@ window.addEventListener('resize', () => {
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             // Resize cold system canvases
-const canvasIds = ['upper-snow-canvas', 'upper-frost-canvas', 'under-snow-canvas', 'under-frost-canvas', 'lens-flare-canvas'];
+const canvasIds = ['upper-snow-canvas', 'upper-frost-canvas', 'under-snow-canvas', 'under-frost-canvas', 'fimbul-frost-canvas', 'lens-flare-canvas'];
             canvasIds.forEach(id => {
                 const canvas = document.getElementById(id);
                 if (canvas) {
@@ -3780,4 +4164,3 @@ const canvasIds = ['upper-snow-canvas', 'upper-frost-canvas', 'under-snow-canvas
     </script>
 </body>
 </html>
-
