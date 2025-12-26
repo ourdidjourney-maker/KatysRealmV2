@@ -3593,7 +3593,6 @@ function exitToOrbit() {
             if (!isGroundView) {
                 savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
                 resetAllViewStates();
-resetAllViewStates();
                 isUnderworldView = false;
                 isEdgeView = true;
                 groundViewAngles = { pitch: 0, yaw: Math.PI };
