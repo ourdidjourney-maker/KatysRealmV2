@@ -1135,9 +1135,9 @@ underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1);
                 float fresnel = 1.0 - abs(dot(viewDir, vNormal));
                 fresnel = pow(fresnel, 2.0);
                 
-vec3 paleCyan = vec3(0.15, 0.2, 0.3);
-vec3 iceWhite = vec3(0.2, 0.25, 0.3);
-vec3 deepFrost = vec3(0.05, 0.08, 0.15);
+vec3 paleCyan = vec3(0.02, 0.03, 0.06);
+vec3 iceWhite = vec3(0.01, 0.02, 0.04);
+vec3 deepFrost = vec3(0.0, 0.01, 0.03);
                 
                 vec3 frostColor;
                 if (frostIntensity < 0.3) {
@@ -1151,8 +1151,8 @@ vec3 deepFrost = vec3(0.05, 0.08, 0.15);
                 float shimmer = sin(uTime * 3.0 + v.y * 10.0) * 0.5 + 0.5;
                 shimmer = pow(shimmer, 4.0) * 0.3 * frostIntensity;
                 
-                vec3 finalColor = frostColor * (0.6 + crackPattern * 0.4);
-                finalColor += vec3(0.6, 0.8, 1.0) * fresnel * 0.5;
+vec3 finalColor = frostColor * (0.1 + crackPattern * 0.05);
+finalColor += vec3(0.02, 0.03, 0.06) * fresnel * 0.1;
                 finalColor += shimmer;
                 
 float alpha = 0.75 + frostIntensity * 0.2;
@@ -2890,20 +2890,13 @@ sunHalo.visible = SUN_BRIGHTNESS > 0.5;
             // Update ambient light based on realistic lighting mode AND Fimbulwinter
             const baseFimbulIntensity = Math.max(upperFimbulwinterIntensity, lowerFimbulwinterIntensity);
             if (baseFimbulIntensity > 0.1) {
-                // Shift ambient to cold blue as world freezes
-                const coldShift = Math.min(1, (baseFimbulIntensity - 0.1) / 0.6);
-                const r = 1.0 - coldShift * 0.4;
-                const g = 1.0 - coldShift * 0.2;
-                const b = 1.0;
-                ambientLight.color.setRGB(r, g, b);
-                // Also dim slightly as sun dies
-                const dimFactor = 1.0 - coldShift * 0.3;
-                ambientLight.intensity = (realisticLighting ? 0.02 : 0.3) * dimFactor;
-} else {
-    // Normal warm-neutral ambient
-    ambientLight.color.setRGB(1, 1, 1);
-    ambientLight.intensity = 0;
-}
+                // World is freezing - kill all ambient light
+                ambientLight.intensity = 0;
+            } else {
+                // Normal state - no ambient light
+                ambientLight.color.setRGB(1, 1, 1);
+                ambientLight.intensity = 0;
+            }
            
             // Update Moon position with INTERFERENCE model
             // Moon LOW (radialFactor HIGH, close to strata) = MORE interference = DIMMER
