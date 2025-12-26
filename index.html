@@ -4133,8 +4133,9 @@ const scaleFactor = Math.min(4000, Math.max(200, camDist * 0.1));
 
             
             // Apply camera shiver at edge OR from Fimbulwinter
-            const edgeShiver = Math.max(upperShiverIntensity, underShiverIntensity);
-            const fimbulShiver = Math.max(upperFimbulShiverIntensity, lowerFimbulShiverIntensity);
+            const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+            const edgeShiver = inUnderworldView ? underShiverIntensity : upperShiverIntensity;
+            const fimbulShiver = inUnderworldView ? lowerFimbulShiverIntensity : upperFimbulShiverIntensity;
             const totalShiver = Math.max(edgeShiver, fimbulShiver);
             
             if (totalShiver > 0 && isGroundView) {
