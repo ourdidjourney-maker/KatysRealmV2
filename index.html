@@ -226,34 +226,34 @@
         <button id="ground-view-button">Upper Realm Ground View</button>
         <button id="edge-view-button">Upper Realm Edge Plane View</button>
         <button id="mid-view-button">Upper Realm Mid Plane View</button>
-        <button id="toggle-starfield-button">Hide Starfield</button>
-        <button id="sun-view-button">Sun View</button>
-        <button id="moon-view-button">Moon View</button>
-        <button id="usun-view-button">Underworld Sun</button>
-        <button id="umoon-view-button">Underworld Moon</button>
+        <button id="sun-view-button">Upper Realm Sun View</button>
+        <button id="moon-view-button">Upper Realm Moon View</button>
+        <button id="usun-view-button">Underworld Sun View</button>
+        <button id="umoon-view-button">Underworld Moon View</button>
         <button id="underworld-view-button">Underworld Mid View</button>
         <button id="underworld-edge-view-button">Underworld Edge View</button>
 <button id="underworld-mid-view-button">Underworld Mid Plane View</button>        
         <button id="toggle-resonance-button">Shell Resonance</button>
         <button id="shooting-stars-button">Shooting Stars</button>
         <button id="meteor-mode-button">Leonid Shower</button>
+        <button id="stop-meteors-button">Clear Leonids</button>
         <button id="toggle-strata-wire-button">Strata Wireframe</button>
+        <button id="toggle-starfield-button">Hide Starfield</button>
         <button id="toggle-shell-button">Hide Shell</button>
         <button id="toggle-horizon-button">Hide Gulf</button>
-                <button id="toggle-sun-button">Hide Upper Realm Sun</button>
+        <button id="toggle-sun-button">Hide Upper Realm Sun</button>
         <button id="toggle-moon-button">Hide Upper Realm Moon</button>
         <button id="toggle-axes-button">Hide Axes</button>
         <button id="toggle-nebula-button">Hide Nebulae</button>
-        <button id="toggle-ripple-button">Gulf Ripple</button>
-        <button id="stop-meteors-button">Clear Leonids</button>
         <button id="toggle-underworld-sun-button">Hide Underworld Sun</button>
-<button id="toggle-underworld-moon-button">Hide Underworld Moon</button>
+        <button id="toggle-underworld-moon-button">Hide Underworld Moon</button>
         <button id="toggle-interference-button">Moon Phases</button>
         <button id="toggle-umoon-interference-button">Underworld Moon Phases</button>
-        <button id="toggle-luminary-link-button">Luminary Distance</button>
+        <button id="toggle-luminary-link-button">Upper Realm Luminary Distance</button>
         <button id="toggle-underworld-link-button">Underworld Luminary Distance</button>
         <button id="toggle-realistic-lighting-button">Realistic Lighting</button>
         <button id="toggle-lens-flare-button">Lens Flare</button>
+                <button id="toggle-ripple-button">Gulf Ripple</button>
         <button id="toggle-strata-grid-button">Strata Coordinates</button>
         <button id="toggle-shell-grid-button">Kayleigh Coordinates</button>
         <button id="reset-axis-button">Reset Star Axis</button>
@@ -3672,16 +3672,16 @@ function resetAllViewStates() {
     document.getElementById('umoon-view-button').classList.remove('active');
     
     // Reset all button text to defaults
-    document.getElementById('ground-view-button').textContent = 'Ground View';
+    document.getElementById('ground-view-button').textContent = 'Upper World Ground View';
     document.getElementById('underworld-view-button').textContent = 'Underworld View';
-    document.getElementById('edge-view-button').textContent = 'Edge View';
-    document.getElementById('mid-view-button').textContent = 'Mid View';
+    document.getElementById('edge-view-button').textContent = 'Upper realm Midplane Edge View';
+    document.getElementById('mid-view-button').textContent = 'Upper Realm Midplane View';
     document.getElementById('underworld-edge-view-button').textContent = 'Underworld Edge View';
     document.getElementById('underworld-mid-view-button').textContent = 'Underworld Mid View';
-    document.getElementById('sun-view-button').textContent = 'Sun View';
-    document.getElementById('moon-view-button').textContent = 'Moon View';
-    document.getElementById('usun-view-button').textContent = 'Underworld Sun';
-    document.getElementById('umoon-view-button').textContent = 'Underworld Moon';
+    document.getElementById('sun-view-button').textContent = 'Upper Realm Sun View';
+    document.getElementById('moon-view-button').textContent = 'Upper Realm Moon View';
+    document.getElementById('usun-view-button').textContent = 'Underworld Sun View';
+    document.getElementById('umoon-view-button').textContent = 'Underworld Moon View';
 }
 
 function exitToOrbit() {
@@ -3987,11 +3987,11 @@ resetAllViewStates();
         document.getElementById('toggle-shell-button').addEventListener('click', () => { shellVisible = !shellVisible; shellWireframe.visible = shellVisible; document.getElementById('toggle-shell-button').textContent = shellVisible ? 'Hide Shell' : 'Show Shell'; });
         document.getElementById('toggle-sun-button').addEventListener('click', () => {
             sunVisible = !sunVisible;
-            document.getElementById('toggle-sun-button').textContent = sunVisible ? 'Hide Sun' : 'Show Sun';
+            document.getElementById('toggle-sun-button').textContent = sunVisible ? 'Hide Sun' : 'Show Upper Realm Sun';
         });
         document.getElementById('toggle-moon-button').addEventListener('click', () => {
             moonVisible = !moonVisible;
-            document.getElementById('toggle-moon-button').textContent = moonVisible ? 'Hide Moon' : 'Show Moon';
+            document.getElementById('toggle-moon-button').textContent = moonVisible ? 'Hide Upper Realm Moon' : 'Show Upper Realm Moon';
         });
         document.getElementById('toggle-underworld-sun-button').addEventListener('click', () => {
             underworldSunVisible = !underworldSunVisible;
