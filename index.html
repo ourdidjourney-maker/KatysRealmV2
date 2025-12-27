@@ -71,7 +71,7 @@
 <canvas id="under-frost-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 51;"></canvas>
 <canvas id="fimbul-frost-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 51;"></canvas>
 <canvas id="lens-flare-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 52;"></canvas>
-    
+   
 <div id="grid-tooltip" style="position: absolute; display: none; background: rgba(0,0,0,0.9); border: 2px solid #ffdd44; border-radius: 10px; padding: 12px 16px; font-size: 14px; pointer-events: none; z-index: 1000; min-width: 220px;">
     <div style="color: #ffdd44; font-weight: bold; margin-bottom: 8px; font-size: 16px;" id="tooltip-hemisphere">UPPER HEMISPHERE</div>
     <div style="color: #aaa;">X: <span style="color: #44ddff;" id="tooltip-x">0</span> mi</div>
@@ -333,6 +333,11 @@ let USUN_BRIGHTNESS = 1.5, UMOON_BRIGHTNESS = 0.8;
 let USUN_LIGHT_RADIUS = 8000, UMOON_LIGHT_RADIUS = 6000;
 let UMOON_INTERFERENCE_DURATION = 0.12;
 let underworldMoonInterferenceEnabled = true;
+// Displayed brightness values (smoothly interpolate toward slider values)
+let displayedSunBrightness = 1.5;
+let displayedMoonBrightness = 0.8;
+let displayedUSunBrightness = 1.5;
+let displayedUMoonBrightness = 0.8;
 // ============ EDGE COLD SYSTEM - NIFLHEIM ============
 // Upper Edge View
 let upperEdgeSnowActive = false;
@@ -391,7 +396,7 @@ let lensFlareEnabled = true;
         let luminaryLine, luminaryDistanceSprite;
         let underworldLuminaryLinkVisible = false;
 let underworldLuminaryLine, underworldLuminaryDistanceSprite;
-        
+       
 // Kayleigh's Dual-Zenith Coordinate System
 let shellGridVisible = false;
 let upperZenithMarker, lowerZenithMarker;
@@ -826,7 +831,7 @@ vertexShader: `
             float twinkle = t1 * uTwinkleIntensity * 0.5;
             twinkleMultiplier = 1.0 + twinkle;
         }
-        
+       
         // Hemisphere-based Fimbulwinter fade
         float fimbulFade = 1.0;
         vec4 worldPos = modelMatrix * vec4(position, 1.0);
@@ -844,7 +849,7 @@ vec3 normPos = normalize(worldPos.xyz);
                 fimbulFade = max(0.0, fimbulFade);
             }
         }
-        
+       
         vBrightness = uBrightness * twinkleMultiplier * fimbulFade;
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
         gl_PointSize = size * glowSize * uGlowSize * uPixelRatio * (0.75 + uBrightness * 0.25) * twinkleMultiplier * fimbulFade;
@@ -959,7 +964,7 @@ moonLight = new THREE.PointLight(0x4466ee, MOON_BRIGHTNESS * 4, SHELL_RADIUS * 3
             moonLight.castShadow = true;
             scene.add(moonLight);
                         // ============ UNDERWORLD LUMINARIES ============
-            
+           
             // Remove existing underworld luminaries if any
             if (underworldSunMesh) scene.remove(underworldSunMesh);
             if (underworldMoonMesh) scene.remove(underworldMoonMesh);
@@ -969,13 +974,13 @@ moonLight = new THREE.PointLight(0x4466ee, MOON_BRIGHTNESS * 4, SHELL_RADIUS * 3
             if (underworldMoonGlow) scene.remove(underworldMoonGlow);
             if (underworldSunHalo) scene.remove(underworldSunHalo);
             if (underworldMoonHalo) scene.remove(underworldMoonHalo);
-            
+           
             // Create Underworld Sun - BLOOD RED
 const uSunGeometry = new THREE.SphereGeometry(USUN_SIZE, 32, 32);
             const uSunMaterial = new THREE.MeshBasicMaterial({ color: 0xff2222 });
             underworldSunMesh = new THREE.Mesh(uSunGeometry, uSunMaterial);
             scene.add(underworldSunMesh);
-            
+           
             // Underworld Sun glow - deep red
             const uSunGlowTexture = createGlowTexture(0xff4422);
             const uSunGlowMaterial = new THREE.SpriteMaterial({
@@ -987,7 +992,7 @@ const uSunGeometry = new THREE.SphereGeometry(USUN_SIZE, 32, 32);
             underworldSunGlow = new THREE.Sprite(uSunGlowMaterial);
             underworldSunGlow.scale.set(USUN_SIZE * 10, USUN_SIZE * 10, 1);
             scene.add(underworldSunGlow);
-            
+           
             // Underworld Sun halo - darker red corona
             const uSunHaloTexture = createGlowTexture(0xaa2200);
             const uSunHaloMaterial = new THREE.SpriteMaterial({
@@ -1000,18 +1005,18 @@ const uSunGeometry = new THREE.SphereGeometry(USUN_SIZE, 32, 32);
             underworldSunHalo = new THREE.Sprite(uSunHaloMaterial);
             underworldSunHalo.scale.set(USUN_SIZE * 18, USUN_SIZE * 18, 1);
             scene.add(underworldSunHalo);
-            
+           
             // Underworld Sun light - red light
             underworldSunLight = new THREE.PointLight(0xff4422, SUN_BRIGHTNESS, SHELL_RADIUS * 3);
             underworldSunLight.castShadow = false;
             scene.add(underworldSunLight);
-            
+           
             // Create Underworld Moon - WEIRD DARK BLUE
             const uMoonGeometry = new THREE.SphereGeometry(UMOON_SIZE, 32, 32);
             const uMoonMaterial = new THREE.MeshBasicMaterial({ color: 0x2233aa });
             underworldMoonMesh = new THREE.Mesh(uMoonGeometry, uMoonMaterial);
             scene.add(underworldMoonMesh);
-            
+           
             // Underworld Moon glow - deep indigo
             const uMoonGlowTexture = createGlowTexture(0x3344bb);
             const uMoonGlowMaterial = new THREE.SpriteMaterial({
@@ -1024,7 +1029,7 @@ const uSunGeometry = new THREE.SphereGeometry(USUN_SIZE, 32, 32);
             underworldMoonGlow = new THREE.Sprite(uMoonGlowMaterial);
             underworldMoonGlow.scale.set(MOON_SIZE * 10, MOON_SIZE * 10, 1);
             scene.add(underworldMoonGlow);
-            
+           
             // Underworld Moon halo - dark violet corona
             const uMoonHaloTexture = createGlowTexture(0x222266);
             const uMoonHaloMaterial = new THREE.SpriteMaterial({
@@ -1037,7 +1042,7 @@ const uSunGeometry = new THREE.SphereGeometry(USUN_SIZE, 32, 32);
             underworldMoonHalo = new THREE.Sprite(uMoonHaloMaterial);
 underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1);
             scene.add(underworldMoonHalo);
-            
+           
             // Underworld Moon light - dark blue light
             underworldMoonLight = new THREE.PointLight(0x3344aa, MOON_BRIGHTNESS * 4, SHELL_RADIUS * 3);
             underworldMoonLight.castShadow = true;
@@ -1068,7 +1073,7 @@ underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1);
             texture.needsUpdate = true;
             return texture;
         }
-        
+       
         function createFrostShellMaterial() {
     frostShellMaterial = new THREE.ShaderMaterial({
         uniforms: {
@@ -1081,7 +1086,7 @@ underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1);
             varying vec3 vPosition;
             varying vec3 vNormal;
             varying vec3 vWorldPosition;
-            
+           
             void main() {
                 vPosition = position;
                 vNormal = normalize(normalMatrix * normal);
@@ -1095,11 +1100,11 @@ underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1);
             uniform float uUpperFrostIntensity;
             uniform float uLowerFrostIntensity;
             uniform float uShellRadius;
-            
+           
             varying vec3 vPosition;
             varying vec3 vNormal;
             varying vec3 vWorldPosition;
-            
+           
             vec3 hash3(vec3 p) {
                 p = vec3(
                     dot(p, vec3(127.1, 311.7, 74.7)),
@@ -1108,7 +1113,7 @@ underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1);
                 );
                 return fract(sin(p) * 43758.5453123);
             }
-            
+           
             vec2 voronoi(vec3 x) {
                 vec3 p = floor(x);
                 vec3 f = fract(x);
@@ -1127,44 +1132,44 @@ underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1);
                 }
                 return vec2(sqrt(res), id);
             }
-            
+           
             void main() {
                 vec3 normPos = normalize(vPosition);
-                
-                float upperBlend = smoothstep(-0.1, 0.3, normPos.y);
-                float lowerBlend = smoothstep(0.1, -0.3, normPos.y);
-                
+               
+                float upperBlend = smoothstep(-0.02, 0.02, normPos.y);
+                float lowerBlend = smoothstep(0.02, -0.02, normPos.y);
+               
                 float upperPoleDistance = 1.0 - normPos.y;
                 float upperFrostEdge = uUpperFrostIntensity * 2.0;
                 float upperFrost = 1.0 - smoothstep(upperFrostEdge - 0.3, upperFrostEdge, upperPoleDistance);
                 upperFrost *= upperBlend;
-                
+               
                 float lowerPoleDistance = 1.0 + normPos.y;
                 float lowerFrostEdge = uLowerFrostIntensity * 2.0;
                 float lowerFrost = 1.0 - smoothstep(lowerFrostEdge - 0.3, lowerFrostEdge, lowerPoleDistance);
                 lowerFrost *= lowerBlend;
-                
+               
                 float frostIntensity = max(upperFrost, lowerFrost);
                 if (frostIntensity < 0.01) discard;
-                
+               
                 vec3 voronoiCoord = normPos * 1.0;
                 vec2 v = voronoi(voronoiCoord);
                 float cracks = 1.0 - smoothstep(0.0, 0.15, v.x);
-                
+               
                 vec2 v2 = voronoi(normPos * 10.0);
                 float smallCracks = 1.0 - smoothstep(0.0, 0.1, v2.x);
                 smallCracks *= 0.5;
-                
+               
                 float crackPattern = cracks + smallCracks * frostIntensity;
-                
+               
                 vec3 viewDir = normalize(cameraPosition - vWorldPosition);
                 float fresnel = 1.0 - abs(dot(viewDir, vNormal));
                 fresnel = pow(fresnel, 2.0);
-                
+               
 vec3 paleCyan = vec3(0.02, 0.03, 0.06);
 vec3 iceWhite = vec3(0.01, 0.02, 0.04);
 vec3 deepFrost = vec3(0.0, 0.01, 0.03);
-                
+               
                 vec3 frostColor;
                 if (frostIntensity < 0.3) {
                     frostColor = mix(paleCyan, iceWhite, frostIntensity / 0.3);
@@ -1173,17 +1178,17 @@ vec3 deepFrost = vec3(0.0, 0.01, 0.03);
                 } else {
                     frostColor = deepFrost;
                 }
-                
+               
 float shimmer = sin(uTime * 0.5 + v.y * 10.0) * 0.5 + 0.5;
 shimmer = pow(shimmer, 2.0) * frostIntensity;
-                
+               
 vec3 finalColor = frostColor * (0.1 + crackPattern * 0.05);
 finalColor += vec3(0.02, 0.03, 0.06) * fresnel * 0.1;
 finalColor += vec3(0.002, 0.004, 0.008) * shimmer;
-                
+               
 float alpha = 0.75 + frostIntensity * 0.2;
                 alpha = clamp(alpha, 0.0, 0.95);
-                
+               
                 gl_FragColor = vec4(finalColor, alpha);
             }
         `,
@@ -1199,36 +1204,36 @@ let displayedLowerFrost = 0;
 
 function updateFrostShell(elapsedTime) {
     if (!frostShell || !frostShellMaterial) return;
-    
+   
     // Calculate TARGET frost from sun state
     const targetUpperFrost = calculateUpperFimbulwinterIntensity();
     const targetLowerFrost = calculateLowerFimbulwinterIntensity();
-    
+   
     // Smooth interpolation - frost creeps slowly toward target
     const freezeSpeed = 0.0004;  // How fast frost spreads
     const thawSpeed = 0.003;   // How fast frost retreats (slower)
-    
+   
     // Upper frost smoothing
     if (targetUpperFrost > displayedUpperFrost) {
         displayedUpperFrost += (targetUpperFrost - displayedUpperFrost) * freezeSpeed;
     } else {
         displayedUpperFrost += (targetUpperFrost - displayedUpperFrost) * thawSpeed;
     }
-    
+   
     // Lower frost smoothing
     if (targetLowerFrost > displayedLowerFrost) {
         displayedLowerFrost += (targetLowerFrost - displayedLowerFrost) * freezeSpeed;
     } else {
         displayedLowerFrost += (targetLowerFrost - displayedLowerFrost) * thawSpeed;
     }
-    
+   
     frostShellMaterial.uniforms.uTime.value = elapsedTime;
     frostShellMaterial.uniforms.uUpperFrostIntensity.value = displayedUpperFrost;
     frostShellMaterial.uniforms.uLowerFrostIntensity.value = displayedLowerFrost;
-    
+   
     frostShell.visible = (displayedUpperFrost > 0.02 || displayedLowerFrost > 0.02);
 }
-        
+       
         // Kayleigh's Dual-Zenith Shell Coordinate System
 function createShellGrid() {
     // Clean up existing grid
@@ -1236,7 +1241,7 @@ function createShellGrid() {
     if (lowerZenithMarker) scene.remove(lowerZenithMarker);
     shellGridLines.forEach(line => scene.remove(line));
     shellGridLines = [];
-    
+   
     // Create Upper Zenith marker (top of shell) - GOLD
     const zenithGeometry = new THREE.SphereGeometry(80, 16, 16);
     const upperZenithMaterial = new THREE.MeshBasicMaterial({ color: 0xffdd44 });
@@ -1244,23 +1249,23 @@ function createShellGrid() {
     upperZenithMarker.position.set(0, SHELL_RADIUS, 0);
     upperZenithMarker.visible = shellGridVisible;
     scene.add(upperZenithMarker);
-    
+   
     // Create Lower Zenith marker (bottom of shell) - CYAN
     const lowerZenithMaterial = new THREE.MeshBasicMaterial({ color: 0xff6666 });
     lowerZenithMarker = new THREE.Mesh(zenithGeometry, lowerZenithMaterial);
     lowerZenithMarker.position.set(0, -SHELL_RADIUS, 0);
     lowerZenithMarker.visible = shellGridVisible;
     scene.add(lowerZenithMarker);
-    
+   
     // Create latitude lines (horizontal circles at different Z depths from each zenith)
     const latitudeMaterialUpper = new THREE.LineBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 0.5 });
     const latitudeMaterialLower = new THREE.LineBasicMaterial({ color: 0xff6666, transparent: true, opacity: 0.5 });
-    
+   
     for (let i = 1; i < gridDivisions; i++) {
         const angle = (i / gridDivisions) * (Math.PI / 2); // 0 to 90 degrees from zenith
         const y = SHELL_RADIUS * Math.cos(angle);
         const radius = SHELL_RADIUS * Math.sin(angle);
-        
+       
         // Upper hemisphere latitude circle
         const upperLatPoints = [];
         for (let j = 0; j <= 64; j++) {
@@ -1276,7 +1281,7 @@ function createShellGrid() {
         upperLatLine.visible = shellGridVisible;
         scene.add(upperLatLine);
         shellGridLines.push(upperLatLine);
-        
+       
         // Lower hemisphere latitude circle (mirror)
         const lowerLatPoints = [];
         for (let j = 0; j <= 64; j++) {
@@ -1293,14 +1298,14 @@ function createShellGrid() {
         scene.add(lowerLatLine);
         shellGridLines.push(lowerLatLine);
     }
-    
+   
     // Create longitude lines (great circles through both zeniths)
     const longitudeMaterial = new THREE.LineBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.4 });
-    
+   
     for (let i = 0; i < gridDivisions; i++) {
         const theta = (i / gridDivisions) * Math.PI; // Half circle (other half is same line)
         const lonPoints = [];
-        
+       
         // Draw full great circle from top zenith to bottom zenith and back
         for (let j = 0; j <= 64; j++) {
             const phi = (j / 64) * Math.PI * 2;
@@ -1316,7 +1321,7 @@ function createShellGrid() {
         scene.add(lonLine);
         shellGridLines.push(lonLine);
     }
-    
+   
     // Create equator line (where upper and lower systems meet) - WHITE/BRIGHT
     const equatorMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
     const equatorPoints = [];
@@ -1347,28 +1352,28 @@ function createGridLabel(text, color, fontSize = 72) {
     const context = canvas.getContext('2d');
     canvas.width = 512;
     canvas.height = 128;
-    
+   
     context.font = `Bold ${fontSize}px Arial`;
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    
+   
     // Background
     context.fillStyle = 'rgba(0, 0, 0, 0.6)';
     context.beginPath();
     context.roundRect(10, 10, canvas.width - 20, canvas.height - 20, 20);
     context.fill();
-    
+   
     // Text
     context.fillStyle = color;
     context.fillText(text, canvas.width / 2, canvas.height / 2);
-    
+   
     const texture = new THREE.Texture(canvas);
     texture.needsUpdate = true;
-    
-    const spriteMaterial = new THREE.SpriteMaterial({ 
-        map: texture, 
-        transparent: true, 
-        depthWrite: false 
+   
+    const spriteMaterial = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthWrite: false
     });
     const sprite = new THREE.Sprite(spriteMaterial);
 sprite.scale.set(800, 200, 1);
@@ -1382,25 +1387,25 @@ function createShellGridLabels() {
     if (equatorLabel) scene.remove(equatorLabel);
     shellGridLabels.forEach(label => scene.remove(label));
     shellGridLabels = [];
-    
+   
     // Upper Zenith Label
     upperZenithLabel = createGridLabel('Z↑ ORIGIN', '#ffdd44');
     upperZenithLabel.position.set(300, SHELL_RADIUS + 150, 0);
     upperZenithLabel.visible = shellGridVisible;
     scene.add(upperZenithLabel);
-    
+   
     // Lower Zenith Label
     lowerZenithLabel = createGridLabel('Z↓ ORIGIN', '#ff8844');
     lowerZenithLabel.position.set(300, -SHELL_RADIUS - 150, 0);
     lowerZenithLabel.visible = shellGridVisible;
     scene.add(lowerZenithLabel);
-    
+   
     // Z depth labels for upper hemisphere latitude rings
     for (let i = 1; i < gridDivisions; i++) {
         const angle = (i / gridDivisions) * (Math.PI / 2);
         const y = SHELL_RADIUS * Math.cos(angle);
         const zDepth = SHELL_RADIUS - y;
-        
+       
         // Upper hemisphere Z↑ label
         const upperLabel = createGridLabel(`Z↑ ${Math.round(zDepth)} mi`, '#ffdd44', 48);
         upperLabel.position.set(SHELL_RADIUS * Math.sin(angle) + 300, y, 0);
@@ -1408,7 +1413,7 @@ upperLabel.scale.set(SHELL_RADIUS * 0.15, SHELL_RADIUS * 0.0375, 1);
         upperLabel.visible = shellGridVisible;
         scene.add(upperLabel);
         shellGridLabels.push(upperLabel);
-        
+       
         // Lower hemisphere Z↓ label
         const lowerLabel = createGridLabel(`Z↓ ${Math.round(zDepth)} mi`, '#ff8844', 48);
         lowerLabel.position.set(SHELL_RADIUS * Math.sin(angle) + 300, -y, 0);
@@ -1422,7 +1427,7 @@ lowerLabel.scale.set(SHELL_RADIUS * 0.15, SHELL_RADIUS * 0.0375, 1);
         const angle = (i / gridDivisions) * (Math.PI / 2);
         const xPos = SHELL_RADIUS * Math.sin(angle);
         const zPos = SHELL_RADIUS * Math.cos(angle);
-        
+       
         // Front side: both sides of center
         const xLabelFront1 = createGridLabel(`X ${Math.round(xPos)} mi`, '#44ddff', 48);
         xLabelFront1.position.set(xPos, 150, zPos);
@@ -1430,14 +1435,14 @@ lowerLabel.scale.set(SHELL_RADIUS * 0.15, SHELL_RADIUS * 0.0375, 1);
         xLabelFront1.visible = shellGridVisible;
         scene.add(xLabelFront1);
         shellGridLabels.push(xLabelFront1);
-        
+       
         const xLabelFront2 = createGridLabel(`X ${Math.round(xPos)} mi`, '#44ddff', 48);
         xLabelFront2.position.set(-xPos, 150, zPos);
         xLabelFront2.scale.set(SHELL_RADIUS * 0.15, SHELL_RADIUS * 0.0375, 1);
         xLabelFront2.visible = shellGridVisible;
         scene.add(xLabelFront2);
         shellGridLabels.push(xLabelFront2);
-        
+       
         // Back side: both sides of center
         const xLabelBack1 = createGridLabel(`X ${Math.round(xPos)} mi`, '#44ddff', 48);
         xLabelBack1.position.set(xPos, 150, -zPos);
@@ -1445,7 +1450,7 @@ lowerLabel.scale.set(SHELL_RADIUS * 0.15, SHELL_RADIUS * 0.0375, 1);
         xLabelBack1.visible = shellGridVisible;
         scene.add(xLabelBack1);
         shellGridLabels.push(xLabelBack1);
-        
+       
         const xLabelBack2 = createGridLabel(`X ${Math.round(xPos)} mi`, '#44ddff', 48);
         xLabelBack2.position.set(-xPos, 150, -zPos);
         xLabelBack2.scale.set(SHELL_RADIUS * 0.15, SHELL_RADIUS * 0.0375, 1);
@@ -1453,7 +1458,7 @@ lowerLabel.scale.set(SHELL_RADIUS * 0.15, SHELL_RADIUS * 0.0375, 1);
         scene.add(xLabelBack2);
         shellGridLabels.push(xLabelBack2);
     }
-    
+   
 }
 
 function updateGridLabelsVisibility() {
@@ -1468,9 +1473,9 @@ function createStrataGrid() {
     if (lowerStrataOrigin) scene.remove(lowerStrataOrigin);
     strataGridLines.forEach(line => scene.remove(line));
     strataGridLines = [];
-    
+   
     const halfThickness = DISK_THICKNESS / 2;
-    
+   
     // Create Upper Surface Origin marker (top center) - GOLD
     const originGeometry = new THREE.SphereGeometry(60, 16, 16);
     const upperOriginMaterial = new THREE.MeshBasicMaterial({ color: 0x44ffaa });
@@ -1478,21 +1483,21 @@ function createStrataGrid() {
     upperStrataOrigin.position.set(0, halfThickness, 0);
     upperStrataOrigin.visible = strataGridVisible;
     scene.add(upperStrataOrigin);
-    
+   
     // Create Lower Surface Origin marker (bottom center) - CYAN
     const lowerOriginMaterial = new THREE.MeshBasicMaterial({ color: 0xff44aa });
     lowerStrataOrigin = new THREE.Mesh(originGeometry, lowerOriginMaterial);
     lowerStrataOrigin.position.set(0, -halfThickness, 0);
     lowerStrataOrigin.visible = strataGridVisible;
     scene.add(lowerStrataOrigin);
-    
+   
     // Concentric circles on upper surface (distance from center)
     const upperCircleMaterial = new THREE.LineBasicMaterial({ color: 0x44ffaa, transparent: true, opacity: 0.5 });
     const lowerCircleMaterial = new THREE.LineBasicMaterial({ color: 0xff44aa, transparent: true, opacity: 0.5 });
-    
+   
     for (let i = 1; i <= gridDivisions; i++) {
         const radius = (i / gridDivisions) * DISK_RADIUS;
-        
+       
         // Upper surface circle
         const upperPoints = [];
         for (let j = 0; j <= 64; j++) {
@@ -1508,7 +1513,7 @@ function createStrataGrid() {
         upperLine.visible = strataGridVisible;
         scene.add(upperLine);
         strataGridLines.push(upperLine);
-        
+       
         // Lower surface circle
         const lowerPoints = [];
         for (let j = 0; j <= 64; j++) {
@@ -1525,17 +1530,17 @@ function createStrataGrid() {
         scene.add(lowerLine);
         strataGridLines.push(lowerLine);
     }
-    
+   
     // Radial lines for quadrants (4 lines dividing into Q1-Q4)
     const radialMaterial = new THREE.LineBasicMaterial({ color: 0xaaaaaa, transparent: true, opacity: 0.4 });
     const upperEdgeMaterial = new THREE.LineBasicMaterial({ color: 0x44ffaa, transparent: true, opacity: 0.5 });
     const lowerEdgeMaterial = new THREE.LineBasicMaterial({ color: 0xff44aa, transparent: true, opacity: 0.5 });
-    
+   
     for (let i = 0; i < 4; i++) {
         const theta = (i / 4) * Math.PI * 2;
         const x = DISK_RADIUS * Math.cos(theta);
         const z = DISK_RADIUS * Math.sin(theta);
-        
+       
         // Upper surface radial
         const upperRadialGeometry = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(0, halfThickness + 1, 0),
@@ -1545,7 +1550,7 @@ function createStrataGrid() {
         upperRadial.visible = strataGridVisible;
         scene.add(upperRadial);
         strataGridLines.push(upperRadial);
-        
+       
         // Lower surface radial
         const lowerRadialGeometry = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(0, -halfThickness - 1, 0),
@@ -1555,7 +1560,7 @@ function createStrataGrid() {
         lowerRadial.visible = strataGridVisible;
         scene.add(lowerRadial);
         strataGridLines.push(lowerRadial);
-        
+       
         // Upper edge line (top surface down to midplane)
         const upperEdgeGeometry = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(x, halfThickness, z),
@@ -1565,7 +1570,7 @@ function createStrataGrid() {
         upperEdge.visible = strataGridVisible;
         scene.add(upperEdge);
         strataGridLines.push(upperEdge);
-        
+       
         // Lower edge line (bottom surface up to midplane)
         const lowerEdgeGeometry = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(x, -halfThickness, z),
@@ -1576,14 +1581,14 @@ function createStrataGrid() {
         scene.add(lowerEdge);
         strataGridLines.push(lowerEdge);
     }
-    
+   
     // Additional edge lines around the cylinder (more detail)
     const edgeLineDivisions = 16; // More lines around the edge
     for (let i = 0; i < edgeLineDivisions; i++) {
         const theta = (i / edgeLineDivisions) * Math.PI * 2;
         const x = DISK_RADIUS * Math.cos(theta);
         const z = DISK_RADIUS * Math.sin(theta);
-        
+       
         // Upper surface radial (origin to edge)
         const upperRadialGeometry = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(0, halfThickness + 1, 0),
@@ -1593,7 +1598,7 @@ function createStrataGrid() {
         upperRadial.visible = strataGridVisible;
         scene.add(upperRadial);
         strataGridLines.push(upperRadial);
-        
+       
         // Lower surface radial (origin to edge)
         const lowerRadialGeometry = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(0, -halfThickness - 1, 0),
@@ -1603,7 +1608,7 @@ function createStrataGrid() {
         lowerRadial.visible = strataGridVisible;
         scene.add(lowerRadial);
         strataGridLines.push(lowerRadial);
-        
+       
         // Upper edge line (top surface down to midplane)
         const upperEdgeGeometry = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(x, halfThickness, z),
@@ -1613,7 +1618,7 @@ function createStrataGrid() {
         upperEdge.visible = strataGridVisible;
         scene.add(upperEdge);
         strataGridLines.push(upperEdge);
-        
+       
         // Lower edge line (bottom surface up to midplane)
         const lowerEdgeGeometry = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(x, -halfThickness, z),
@@ -1633,31 +1638,31 @@ function createStrataGridLabels() {
     if (strataMidplaneLabel) scene.remove(strataMidplaneLabel);
     strataGridLabels.forEach(label => scene.remove(label));
     strataGridLabels = [];
-    
+   
     const halfThickness = DISK_THICKNESS / 2;
-    
+   
     // Upper Surface Origin Label
     upperStrataLabel = createGridLabel('Z↑ ORIGIN', '#44ffaa');
     upperStrataLabel.position.set(200, halfThickness + 150, 0);
     upperStrataLabel.visible = strataGridVisible;
     scene.add(upperStrataLabel);
-    
+   
     // Lower Surface Origin Label
     lowerStrataLabel = createGridLabel('Z↓ ORIGIN', '#ff44aa');
     lowerStrataLabel.position.set(200, -halfThickness - 150, 0);
     lowerStrataLabel.visible = strataGridVisible;
     scene.add(lowerStrataLabel);
-    
+   
     // Midplane Label
     strataMidplaneLabel = createGridLabel('MIDPLANE', '#ffffff');
     strataMidplaneLabel.position.set(DISK_RADIUS + 400, 0, 0);
     strataMidplaneLabel.visible = strataGridVisible;
     scene.add(strataMidplaneLabel);
-    
+   
     // Distance labels for concentric circles (on upper surface)
     for (let i = 1; i <= gridDivisions; i++) {
         const radius = (i / gridDivisions) * DISK_RADIUS;
-        
+       
         // Upper surface distance label
         const upperDistLabel = createGridLabel(`${Math.round(radius)} mi`, '#44ffaa', 48);
         upperDistLabel.position.set(radius + 150, halfThickness + 80, 0);
@@ -1665,7 +1670,7 @@ function createStrataGridLabels() {
         upperDistLabel.visible = strataGridVisible;
         scene.add(upperDistLabel);
         strataGridLabels.push(upperDistLabel);
-        
+       
         // Lower surface distance label
         const lowerDistLabel = createGridLabel(`${Math.round(radius)} mi`, '#ff44aa', 48);
         lowerDistLabel.position.set(radius + 150, -halfThickness - 80, 0);
@@ -1674,13 +1679,13 @@ function createStrataGridLabels() {
         scene.add(lowerDistLabel);
         strataGridLabels.push(lowerDistLabel);
     }
-    
+   
     // Z depth labels on the edge (showing depth into strata)
     const zDivisions = 4;
     for (let i = 1; i < zDivisions; i++) {
         const yPos = halfThickness - (i / zDivisions) * halfThickness;
         const zDepth = (i / zDivisions) * halfThickness;
-        
+       
         // Upper half Z↑ depth label
         const upperZLabel = createGridLabel(`Z↑ ${Math.round(zDepth)} mi`, '#44ffaa', 48);
         upperZLabel.position.set(DISK_RADIUS + 300, yPos, 0);
@@ -1688,7 +1693,7 @@ function createStrataGridLabels() {
         upperZLabel.visible = strataGridVisible;
         scene.add(upperZLabel);
         strataGridLabels.push(upperZLabel);
-        
+       
         // Lower half Z↓ depth label
         const lowerZLabel = createGridLabel(`Z↓ ${Math.round(zDepth)} mi`, '#ff44aa', 48);
         lowerZLabel.position.set(DISK_RADIUS + 300, -yPos, 0);
@@ -1712,9 +1717,9 @@ function updateStrataGridVisibility() {
 function createGridHoverSphere() {
     if (shellHoverSphere) scene.remove(shellHoverSphere);
     const geometry = new THREE.SphereGeometry(SHELL_RADIUS, 64, 64);
-    const material = new THREE.MeshBasicMaterial({ 
-        visible: false, 
-        side: THREE.DoubleSide 
+    const material = new THREE.MeshBasicMaterial({
+        visible: false,
+        side: THREE.DoubleSide
     });
     shellHoverSphere = new THREE.Mesh(geometry, material);
     scene.add(shellHoverSphere);
@@ -1723,9 +1728,9 @@ function createGridHoverSphere() {
 function createStrataHoverMesh() {
     if (strataHoverMesh) scene.remove(strataHoverMesh);
     const geometry = new THREE.CylinderGeometry(DISK_RADIUS, DISK_RADIUS, DISK_THICKNESS, 64, 1);
-    const material = new THREE.MeshBasicMaterial({ 
-        visible: false, 
-        side: THREE.DoubleSide 
+    const material = new THREE.MeshBasicMaterial({
+        visible: false,
+        side: THREE.DoubleSide
     });
     strataHoverMesh = new THREE.Mesh(geometry, material);
     scene.add(strataHoverMesh);
@@ -1733,29 +1738,29 @@ function createStrataHoverMesh() {
 
 function getShellCoordinates(point) {
     const isUpperHemisphere = point.y >= 0;
-    
+   
     let zDepth;
     if (isUpperHemisphere) {
         zDepth = SHELL_RADIUS - point.y;
     } else {
         zDepth = SHELL_RADIUS + point.y;
     }
-    
+   
     // Arc distance to equator (curved path along shell surface)
     const angleFromEquator = Math.asin(Math.abs(point.y) / SHELL_RADIUS);
     const arcToEquator = angleFromEquator * SHELL_RADIUS;
-    
+   
     // Absolute values for X and Y (always positive)
     const x = Math.abs(point.x);
     const y = Math.abs(point.z);
-    
+   
     // Determine quadrant based on signs
     let quadrant;
     if (point.x >= 0 && point.z >= 0) quadrant = 'Q1';
     else if (point.x < 0 && point.z >= 0) quadrant = 'Q2';
     else if (point.x < 0 && point.z < 0) quadrant = 'Q3';
     else quadrant = 'Q4';
-    
+   
     return {
         hemisphere: isUpperHemisphere ? 'UPPER' : 'LOWER',
         x: Math.round(x),
@@ -1771,7 +1776,7 @@ function getShellCoordinates(point) {
 function getStrataCoordinates(point) {
     const halfThickness = DISK_THICKNESS / 2;
     const isUpperSurface = point.y >= 0;
-    
+   
     // Z depth from surface (always positive)
     let zDepth;
     if (isUpperSurface) {
@@ -1779,21 +1784,21 @@ function getStrataCoordinates(point) {
     } else {
         zDepth = halfThickness + point.y;
     }
-    
+   
     // Horizontal distance from center
     const distFromCenter = Math.sqrt(point.x * point.x + point.z * point.z);
-    
+   
     // Absolute values for X and Y (always positive)
     const x = Math.abs(point.x);
     const y = Math.abs(point.z);
-    
+   
     // Determine quadrant based on signs
     let quadrant;
     if (point.x >= 0 && point.z >= 0) quadrant = 'Q1';
     else if (point.x < 0 && point.z >= 0) quadrant = 'Q2';
     else if (point.x < 0 && point.z < 0) quadrant = 'Q3';
     else quadrant = 'Q4';
-    
+   
     return {
         surface: isUpperSurface ? 'UPPER' : 'LOWER',
         x: Math.round(x),
@@ -1811,23 +1816,23 @@ function updateGridTooltip(event) {
         document.getElementById('grid-tooltip').style.display = 'none';
         return;
     }
-    
+   
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-    
+   
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObject(shellHoverSphere);
-    
+   
     if (intersects.length > 0) {
         const point = intersects[0].point;
         const coords = getShellCoordinates(point);
-        
+       
         const tooltip = document.getElementById('grid-tooltip');
         tooltip.style.display = 'block';
         tooltip.style.left = (event.clientX + 15) + 'px';
         tooltip.style.top = (event.clientY + 15) + 'px';
         tooltip.style.borderColor = coords.color;
-        
+       
         document.getElementById('tooltip-hemisphere').textContent = coords.hemisphere + ' HEMISPHERE';
         document.getElementById('tooltip-hemisphere').style.color = coords.color;
         document.getElementById('tooltip-x').textContent = coords.x.toLocaleString();
@@ -1847,23 +1852,23 @@ function updateStrataTooltip(event) {
         document.getElementById('strata-tooltip').style.display = 'none';
         return;
     }
-    
+   
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-    
+   
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObject(strataHoverMesh);
-    
+   
     if (intersects.length > 0) {
         const point = intersects[0].point;
         const coords = getStrataCoordinates(point);
-        
+       
         const tooltip = document.getElementById('strata-tooltip');
         tooltip.style.display = 'block';
         tooltip.style.left = (event.clientX + 15) + 'px';
         tooltip.style.top = (event.clientY + 15) + 'px';
         tooltip.style.borderColor = coords.color;
-        
+       
         document.getElementById('strata-tooltip-surface').textContent = coords.surface + ' SURFACE';
         document.getElementById('strata-tooltip-surface').style.color = coords.color;
         document.getElementById('strata-tooltip-x').textContent = coords.x.toLocaleString();
@@ -1923,16 +1928,16 @@ function createUnderworldLuminaryLink() {
 
 function updateLuminaryLink() {
     if (!luminaryLine || !luminaryDistanceSprite || !sunMesh || !moonMesh) return;
-    
+   
     // Always calculate and display distance in info panel
     const distance = Math.round(sunMesh.position.distanceTo(moonMesh.position));
     document.getElementById('luminary-distance-info').textContent = distance.toLocaleString() + ' mi';
-    
+   
     const showLink = luminaryLinkVisible && sunVisible && moonVisible;
     luminaryLine.visible = showLink;
     luminaryDistanceSprite.visible = showLink;
     if (!showLink) return;
-    
+   
     // Update line positions
     const positions = luminaryLine.geometry.attributes.position.array;
     const colors = luminaryLine.geometry.attributes.color.array;
@@ -1942,7 +1947,7 @@ function updateLuminaryLink() {
     colors[3] = 0.67; colors[4] = 0.73; colors[5] = 1.0;
     luminaryLine.geometry.attributes.position.needsUpdate = true;
     luminaryLine.geometry.attributes.color.needsUpdate = true;
-    
+   
     // Update floating label
     const { canvas, texture } = luminaryDistanceSprite.userData;
     const ctx = canvas.getContext('2d');
@@ -1970,17 +1975,17 @@ function initEdgeColdSystem() {
     const upperSnowCanvas = document.getElementById('upper-snow-canvas');
     upperSnowCanvas.width = window.innerWidth;
     upperSnowCanvas.height = window.innerHeight;
-    
+   
     // Upper frost canvas
     const upperFrostCanvas = document.getElementById('upper-frost-canvas');
     upperFrostCanvas.width = window.innerWidth;
     upperFrostCanvas.height = window.innerHeight;
-    
+   
     // Underworld snow canvas
     const underSnowCanvas = document.getElementById('under-snow-canvas');
     underSnowCanvas.width = window.innerWidth;
     underSnowCanvas.height = window.innerHeight;
-    
+   
     // Underworld frost canvas
     const underFrostCanvas = document.getElementById('under-frost-canvas');
     underFrostCanvas.width = window.innerWidth;
@@ -2006,14 +2011,14 @@ function spawnSnowflake(isUnderworld) {
 function calculateUpperFimbulwinterIntensity() {
     // Skip if sun is hidden entirely (user toggle, not dying)
     if (!sunVisible) return 0;
-    
+   
     // Calculate sun weakness (0 = full power, 1 = completely dead)
     const sunBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - SUN_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
     const sunSizeWeakness = Math.max(0, (FIMBULWINTER_SUN_SIZE_THRESHOLD - SUN_SIZE) / FIMBULWINTER_SUN_SIZE_THRESHOLD);
-    
+   
     // Combined sun weakness (either being low triggers it)
     let sunWeakness = Math.max(sunBrightnessWeakness, sunSizeWeakness);
-    
+   
     // Moon factor - if moon is also dark (interference enabled and low), make it worse
     let moonPenalty = 0;
     if (moonVisible && moonInterferenceEnabled) {
@@ -2024,7 +2029,7 @@ function calculateUpperFimbulwinterIntensity() {
             moonPenalty = (moonRadialFactor - 0.7) / 0.3 * FIMBULWINTER_MOON_MULTIPLIER;
         }
     }
-    
+   
     // Final intensity: sun weakness + moon penalty, capped at 1
     return Math.min(1, sunWeakness + moonPenalty);
 }
@@ -2032,13 +2037,13 @@ function calculateUpperFimbulwinterIntensity() {
 function calculateLowerFimbulwinterIntensity() {
     // INDEPENDENT SYSTEM - uses underworld sun/moon only
     if (!underworldSunVisible) return 0;
-    
+   
     // Calculate underworld sun weakness
     const uSunBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - USUN_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
     const uSunSizeWeakness = Math.max(0, (FIMBULWINTER_SUN_SIZE_THRESHOLD - USUN_SIZE) / FIMBULWINTER_SUN_SIZE_THRESHOLD);
-    
+   
     let uSunWeakness = Math.max(uSunBrightnessWeakness, uSunSizeWeakness);
-    
+   
     // Underworld moon factor
     let uMoonPenalty = 0;
     if (underworldMoonVisible && underworldMoonInterferenceEnabled) {
@@ -2047,35 +2052,35 @@ function calculateLowerFimbulwinterIntensity() {
             uMoonPenalty = (uMoonRadialFactor - 0.7) / 0.3 * FIMBULWINTER_MOON_MULTIPLIER;
         }
     }
-    
+   
     return Math.min(1, uSunWeakness + uMoonPenalty);
 }
 
 function updateUpperFimbulwinter() {
     // Only build intensity when in upper ground-level views
     const inUpperGroundView = isGroundView && !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;
-    
+   
 if (!inUpperGroundView) {
     upperFimbulwinterIntensity = 0;
     upperFimbulwinterActive = false;
     upperFimbulShiverIntensity = 0;
     return;
 }
-    
+   
     const targetIntensity = calculateUpperFimbulwinterIntensity();
-    
+   
     if (targetIntensity > 0.05) {
         // Sun is weak - should be freezing
         if (!upperFimbulwinterActive) {
             upperFimbulwinterActive = true;
             upperFimbulwinterStartTime = Date.now();
         }
-        
+       
         // Time factor limits how fast frost can BUILD (60 sec to full)
         const elapsed = Date.now() - upperFimbulwinterStartTime;
         const timeFactor = Math.min(1, elapsed / 60000);
         const maxAllowedByTime = targetIntensity * timeFactor;
-        
+       
         // Intensity creeps toward maxAllowedByTime
         if (upperFimbulwinterIntensity < maxAllowedByTime) {
             // Freezing
@@ -2097,7 +2102,7 @@ if (!inUpperGroundView) {
             }
         }
     }
-    
+   
     // Calculate shiver based on frost intensity
     if (upperFimbulwinterIntensity > FIMBUL_SHIVER_START_INTENSITY) {
         // Shiver scales from 0 at 20% frost to max at 100% frost
@@ -2111,28 +2116,28 @@ if (!inUpperGroundView) {
 function updateLowerFimbulwinter() {
     // Only build intensity when in underworld ground-level views
     const inLowerGroundView = isGroundView && (isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView);
-    
+   
 if (!inLowerGroundView) {
     // Disable camera-specific shiver, but let star fade intensity persist
     lowerFimbulShiverIntensity = 0;
     // Don't reset intensity - let it persist for orbit view star fade
     return;
 }
-    
+   
     // INDEPENDENT SYSTEM - duplicated logic, no sharing
     const targetIntensity = calculateLowerFimbulwinterIntensity();
-    
+   
     if (targetIntensity > 0.05) {
         // Underworld sun is weak - should be freezing
         if (!lowerFimbulwinterActive) {
             lowerFimbulwinterActive = true;
             lowerFimbulwinterStartTime = Date.now();
         }
-        
+       
         const elapsed = Date.now() - lowerFimbulwinterStartTime;
         const timeFactor = Math.min(1, elapsed / 60000);
         const maxAllowedByTime = targetIntensity * timeFactor;
-        
+       
         if (lowerFimbulwinterIntensity < maxAllowedByTime) {
             // Freezing
             lowerFimbulwinterIntensity += 0.001;
@@ -2153,7 +2158,7 @@ if (!inLowerGroundView) {
             }
         }
     }
-    
+   
     // Calculate shiver based on frost intensity
     if (lowerFimbulwinterIntensity > FIMBUL_SHIVER_START_INTENSITY) {
         // Shiver scales from 0 at 20% frost to max at 100% frost
@@ -2166,40 +2171,40 @@ if (!inLowerGroundView) {
 
 function updateFimbulwinterFrost() {
     if (!fimbulFrostCtx || !fimbulFrostCanvas) return;
-    
+   
     // No frost in orbit view
     if (!isGroundView) {
         fimbulFrostCtx.clearRect(0, 0, fimbulFrostCanvas.width, fimbulFrostCanvas.height);
         return;
     }
-    
+   
     // Determine which intensity to use based on current view
     // Underworld views use lower intensity, all others use upper
     const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
     const intensity = inUnderworldView ? lowerFimbulwinterIntensity : upperFimbulwinterIntensity;
-    
+   
     // Clear if no effect
     if (intensity <= 0) {
         fimbulFrostCtx.clearRect(0, 0, fimbulFrostCanvas.width, fimbulFrostCanvas.height);
         return;
     }
-    
+   
     fimbulFrostCtx.clearRect(0, 0, fimbulFrostCanvas.width, fimbulFrostCanvas.height);
-    
+   
     const w = fimbulFrostCanvas.width;
     const h = fimbulFrostCanvas.height;
-    
+   
     // Fimbulwinter frost is MORE aggressive than edge frost
     // It covers the entire screen, not just edges
     const cornerRadius = Math.min(w, h) * 1.5 * intensity;
-    
+   
 // Color tint - dark frost (no light = dark ice)
 const frostColor = inUnderworldView ? 'rgba(20, 25, 45,' : 'rgba(30, 35, 50,';
 const iceColor = inUnderworldView ? 'rgba(15, 20, 40,' : 'rgba(25, 30, 45,';
-    
+   
     // Corner frost gradients - larger and more intense than edge frost
     let gradient;
-    
+   
     // Top-left
     gradient = fimbulFrostCtx.createRadialGradient(0, 0, 0, 0, 0, cornerRadius);
     gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
@@ -2208,7 +2213,7 @@ const iceColor = inUnderworldView ? 'rgba(15, 20, 40,' : 'rgba(25, 30, 45,';
     gradient.addColorStop(1, frostColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(0, 0, cornerRadius, cornerRadius);
-    
+   
     // Top-right
     gradient = fimbulFrostCtx.createRadialGradient(w, 0, 0, w, 0, cornerRadius);
     gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
@@ -2217,7 +2222,7 @@ const iceColor = inUnderworldView ? 'rgba(15, 20, 40,' : 'rgba(25, 30, 45,';
     gradient.addColorStop(1, frostColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(w - cornerRadius, 0, cornerRadius, cornerRadius);
-    
+   
     // Bottom-left
     gradient = fimbulFrostCtx.createRadialGradient(0, h, 0, 0, h, cornerRadius);
     gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
@@ -2226,7 +2231,7 @@ const iceColor = inUnderworldView ? 'rgba(15, 20, 40,' : 'rgba(25, 30, 45,';
     gradient.addColorStop(1, frostColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(0, h - cornerRadius, cornerRadius, cornerRadius);
-    
+   
     // Bottom-right
     gradient = fimbulFrostCtx.createRadialGradient(w, h, 0, w, h, cornerRadius);
     gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
@@ -2235,38 +2240,38 @@ const iceColor = inUnderworldView ? 'rgba(15, 20, 40,' : 'rgba(25, 30, 45,';
     gradient.addColorStop(1, frostColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(w - cornerRadius, h - cornerRadius, cornerRadius, cornerRadius);
-    
+   
     // Edge frost strips - thicker than edge view frost
     const edgeWidth = 300 * intensity;
-    
+   
     // Top edge
     gradient = fimbulFrostCtx.createLinearGradient(0, 0, 0, edgeWidth);
     gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(0, 0, w, edgeWidth);
-    
+   
     // Bottom edge
     gradient = fimbulFrostCtx.createLinearGradient(0, h, 0, h - edgeWidth);
     gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(0, h - edgeWidth, w, edgeWidth);
-    
+   
     // Left edge
     gradient = fimbulFrostCtx.createLinearGradient(0, 0, edgeWidth, 0);
     gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(0, 0, edgeWidth, h);
-    
+   
     // Right edge
     gradient = fimbulFrostCtx.createLinearGradient(w, 0, w - edgeWidth, 0);
     gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(w - edgeWidth, 0, edgeWidth, h);
-    
+   
     // At high intensity, add center vignette (world is truly dying)
     if (intensity > 0.5) {
         const vignetteIntensity = (intensity - 0.5) * 2; // 0 to 1 for intensity 0.5 to 1
@@ -2277,18 +2282,18 @@ const iceColor = inUnderworldView ? 'rgba(15, 20, 40,' : 'rgba(25, 30, 45,';
         fimbulFrostCtx.fillStyle = gradient;
         fimbulFrostCtx.fillRect(0, 0, w, h);
     }
-    
+   
     // Ice crystal patterns at higher intensity
     if (intensity > 0.3) {
         const crystalCount = Math.floor(intensity * 50);
         fimbulFrostCtx.strokeStyle = iceColor + (intensity * 0.5) + ')';
         fimbulFrostCtx.lineWidth = 1;
-        
+       
         for (let i = 0; i < crystalCount; i++) {
             // Crystals appear anywhere on screen during Fimbulwinter
             const cx = Math.random() * w;
             const cy = Math.random() * h;
-            
+           
             // Bias toward edges
             const edgeBias = Math.random();
             let finalX = cx, finalY = cy;
@@ -2299,15 +2304,15 @@ const iceColor = inUnderworldView ? 'rgba(15, 20, 40,' : 'rgba(25, 30, 45,';
                 const distToTop = cy;
                 const distToBottom = h - cy;
                 const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
-                
+               
                 if (minDist === distToLeft) finalX = Math.random() * edgeWidth * 2;
                 else if (minDist === distToRight) finalX = w - Math.random() * edgeWidth * 2;
                 else if (minDist === distToTop) finalY = Math.random() * edgeWidth * 2;
                 else finalY = h - Math.random() * edgeWidth * 2;
             }
-            
+           
             const size = 5 + Math.random() * 20 * intensity;
-            
+           
             // 6-point star crystal
             fimbulFrostCtx.beginPath();
             for (let j = 0; j < 6; j++) {
@@ -2325,7 +2330,7 @@ function updateUpperEdgeCold() {
     const frostCanvas = document.getElementById('upper-frost-canvas');
     const snowCtx = snowCanvas.getContext('2d');
     const frostCtx = frostCanvas.getContext('2d');
-    
+   
     if (!upperEdgeSnowActive) {
         // Clear and hide when not active
         snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
@@ -2339,48 +2344,48 @@ function updateUpperEdgeCold() {
         }
         return;
     }
-    
+   
     // === SNOW UPDATE ===
     snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
-    
+   
     // Snowflakes disabled - frost only
     /*
     if (upperSnowflakes.length < UPPER_MAX_SNOWFLAKES && Math.random() < 0.3) {
         upperSnowflakes.push(spawnSnowflake(false));
     }
     */
-    
+   
     // Update and draw snowflakes
     for (let i = upperSnowflakes.length - 1; i >= 0; i--) {
         const flake = upperSnowflakes[i];
         flake.y += flake.speed;
         flake.wobble += flake.wobbleSpeed;
         flake.x += flake.drift + Math.sin(flake.wobble) * 0.5;
-        
+       
         // Remove if off screen
         if (flake.y > snowCanvas.height + 10 || flake.x < -10 || flake.x > snowCanvas.width + 10) {
             upperSnowflakes.splice(i, 1);
             continue;
         }
-        
+       
         // Draw snowflake
         snowCtx.beginPath();
         snowCtx.arc(flake.x, flake.y, flake.size, 0, Math.PI * 2);
         snowCtx.fillStyle = `rgba(255, 255, 255, ${flake.opacity})`;
         snowCtx.fill();
-        
+       
         // Add subtle glow
         snowCtx.beginPath();
         snowCtx.arc(flake.x, flake.y, flake.size * 2, 0, Math.PI * 2);
         snowCtx.fillStyle = `rgba(200, 220, 255, ${flake.opacity * 0.2})`;
         snowCtx.fill();
     }
-    
+   
     // === FROST UPDATE ===
     const elapsed = Date.now() - upperEdgeViewStartTime;
     upperEdgeFrostIntensity = Math.min(FROST_MAX_INTENSITY, elapsed / FROST_MAX_TIME);
     drawFrost(frostCtx, frostCanvas, upperEdgeFrostIntensity, false);
-    
+   
     // === SHIVER UPDATE ===
     if (elapsed > SHIVER_START_TIME) {
         const shiverElapsed = elapsed - SHIVER_START_TIME;
@@ -2395,7 +2400,7 @@ function updateUnderEdgeCold() {
     const frostCanvas = document.getElementById('under-frost-canvas');
     const snowCtx = snowCanvas.getContext('2d');
     const frostCtx = frostCanvas.getContext('2d');
-    
+   
     if (!underEdgeSnowActive) {
         // Clear and hide when not active
         snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
@@ -2409,48 +2414,48 @@ function updateUnderEdgeCold() {
         }
         return;
     }
-    
+   
     // === SNOW UPDATE ===
     snowCtx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
-    
+   
     // Snowflakes disabled - frost only
     /*
     if (underSnowflakes.length < UNDER_MAX_SNOWFLAKES && Math.random() < 0.3) {
         underSnowflakes.push(spawnSnowflake(true));
     }
     */
-    
+   
     // Update and draw snowflakes
     for (let i = underSnowflakes.length - 1; i >= 0; i--) {
         const flake = underSnowflakes[i];
         flake.y += flake.speed;
         flake.wobble += flake.wobbleSpeed;
         flake.x += flake.drift + Math.sin(flake.wobble) * 0.5;
-        
+       
         // Remove if off screen
         if (flake.y > snowCanvas.height + 10 || flake.x < -10 || flake.x > snowCanvas.width + 10) {
             underSnowflakes.splice(i, 1);
             continue;
         }
-        
+       
         // Draw snowflake - slightly blue tint for underworld
         snowCtx.beginPath();
         snowCtx.arc(flake.x, flake.y, flake.size, 0, Math.PI * 2);
         snowCtx.fillStyle = `rgba(200, 220, 255, ${flake.opacity})`;
         snowCtx.fill();
-        
+       
         // Add subtle glow - more blue for underworld
         snowCtx.beginPath();
         snowCtx.arc(flake.x, flake.y, flake.size * 2, 0, Math.PI * 2);
         snowCtx.fillStyle = `rgba(150, 180, 255, ${flake.opacity * 0.25})`;
         snowCtx.fill();
     }
-    
+   
     // === FROST UPDATE ===
     const elapsed = Date.now() - underEdgeViewStartTime;
     underEdgeFrostIntensity = Math.min(FROST_MAX_INTENSITY, elapsed / FROST_MAX_TIME);
     drawFrost(frostCtx, frostCanvas, underEdgeFrostIntensity, true);
-    
+   
     // === SHIVER UPDATE ===
     if (elapsed > SHIVER_START_TIME) {
         const shiverElapsed = elapsed - SHIVER_START_TIME;
@@ -2465,17 +2470,17 @@ function drawFrost(ctx, canvas, intensity, isUnderworld) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         return;
     }
-    
+   
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+   
     const w = canvas.width;
     const h = canvas.height;
  const cornerRadius = Math.min(w, h) * 1.2 * intensity;
-    
+   
     // Color tint - upper is white-blue, underworld is deeper blue
     const frostColor = isUnderworld ? 'rgba(100, 140, 200,' : 'rgba(180, 210, 240,';
     const iceColor = isUnderworld ? 'rgba(60, 100, 180,' : 'rgba(150, 190, 230,';
-    
+   
     // Draw corner frost gradients
     // Top-left
     let gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, cornerRadius);
@@ -2484,7 +2489,7 @@ function drawFrost(ctx, canvas, intensity, isUnderworld) {
     gradient.addColorStop(1, frostColor + '0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, cornerRadius, cornerRadius);
-    
+   
     // Top-right
     gradient = ctx.createRadialGradient(w, 0, 0, w, 0, cornerRadius);
     gradient.addColorStop(0, frostColor + (intensity * 0.8) + ')');
@@ -2492,7 +2497,7 @@ function drawFrost(ctx, canvas, intensity, isUnderworld) {
     gradient.addColorStop(1, frostColor + '0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(w - cornerRadius, 0, cornerRadius, cornerRadius);
-    
+   
     // Bottom-left
     gradient = ctx.createRadialGradient(0, h, 0, 0, h, cornerRadius);
     gradient.addColorStop(0, frostColor + (intensity * 0.8) + ')');
@@ -2500,7 +2505,7 @@ function drawFrost(ctx, canvas, intensity, isUnderworld) {
     gradient.addColorStop(1, frostColor + '0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, h - cornerRadius, cornerRadius, cornerRadius);
-    
+   
     // Bottom-right
     gradient = ctx.createRadialGradient(w, h, 0, w, h, cornerRadius);
     gradient.addColorStop(0, frostColor + (intensity * 0.8) + ')');
@@ -2508,44 +2513,44 @@ function drawFrost(ctx, canvas, intensity, isUnderworld) {
     gradient.addColorStop(1, frostColor + '0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(w - cornerRadius, h - cornerRadius, cornerRadius, cornerRadius);
-    
+   
     // Edge frost strips
 const edgeWidth = 250 * intensity;
-    
+   
     // Top edge
     gradient = ctx.createLinearGradient(0, 0, 0, edgeWidth);
     gradient.addColorStop(0, iceColor + (intensity * 0.6) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, w, edgeWidth);
-    
+   
     // Bottom edge
     gradient = ctx.createLinearGradient(0, h, 0, h - edgeWidth);
     gradient.addColorStop(0, iceColor + (intensity * 0.6) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, h - edgeWidth, w, edgeWidth);
-    
+   
     // Left edge
     gradient = ctx.createLinearGradient(0, 0, edgeWidth, 0);
     gradient.addColorStop(0, iceColor + (intensity * 0.6) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, edgeWidth, h);
-    
+   
     // Right edge
     gradient = ctx.createLinearGradient(w, 0, w - edgeWidth, 0);
     gradient.addColorStop(0, iceColor + (intensity * 0.6) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(w - edgeWidth, 0, edgeWidth, h);
-    
+   
     // Ice crystal patterns (simple) - more at higher intensity
     if (intensity > 0.3) {
         const crystalCount = Math.floor(intensity * 30);
         ctx.strokeStyle = iceColor + (intensity * 0.4) + ')';
         ctx.lineWidth = 1;
-        
+       
         for (let i = 0; i < crystalCount; i++) {
             // Place crystals near edges
             let cx, cy;
@@ -2556,9 +2561,9 @@ const edgeWidth = 250 * intensity;
                 case 2: cx = Math.random() * edgeWidth * 1.5; cy = Math.random() * h; break;
                 case 3: cx = w - Math.random() * edgeWidth * 1.5; cy = Math.random() * h; break;
             }
-            
+           
             const size = 5 + Math.random() * 15 * intensity;
-            
+           
             // Simple 6-point star crystal
             ctx.beginPath();
             for (let j = 0; j < 6; j++) {
@@ -2612,24 +2617,24 @@ function initLensFlare() {
 
 function updateLensFlare() {
     if (!lensFlareCtx || !lensFlareCanvas) return;
-    
+   
     // Check if disabled, not in ground view, or at the edge (too far to see clearly)
     if (!lensFlareEnabled || !isGroundView || isEdgeView || isUnderworldEdgeView) {
         lensFlareCtx.clearRect(0, 0, lensFlareCanvas.width, lensFlareCanvas.height);
         return;
     }
-    
+   
     lensFlareCtx.clearRect(0, 0, lensFlareCanvas.width, lensFlareCanvas.height);
-    
+   
     // Get camera direction
     const cameraDir = new THREE.Vector3();
     camera.getWorldDirection(cameraDir);
-    
+   
 // Check upper sun - no flare when sun is too dim
 if (sunMesh && sunVisible && sunMesh.visible && SUN_BRIGHTNESS > 0.5) {
         const toSun = new THREE.Vector3().subVectors(sunMesh.position, camera.position).normalize();
         const dot = cameraDir.dot(toSun);
-        
+       
         if (dot > FLARE_THRESHOLD) {
             const intensity = (dot - FLARE_THRESHOLD) / (1 - FLARE_THRESHOLD);
             const screenPos = getScreenPosition(sunMesh.position);
@@ -2638,12 +2643,12 @@ if (sunMesh && sunVisible && sunMesh.visible && SUN_BRIGHTNESS > 0.5) {
             }
         }
     }
-    
+   
     // Check underworld sun - no flare when sun is too dim
 if (underworldSunMesh && underworldSunVisible && underworldSunMesh.visible && USUN_BRIGHTNESS > 0.5 && (isUnderworldView || isUSunView || isUMoonView)) {
         const toUSun = new THREE.Vector3().subVectors(underworldSunMesh.position, camera.position).normalize();
         const dot = cameraDir.dot(toUSun);
-        
+       
         if (dot > FLARE_THRESHOLD) {
             const intensity = (dot - FLARE_THRESHOLD) / (1 - FLARE_THRESHOLD);
             const screenPos = getScreenPosition(underworldSunMesh.position);
@@ -2657,13 +2662,13 @@ if (underworldSunMesh && underworldSunVisible && underworldSunMesh.visible && US
 function getScreenPosition(worldPos) {
     const pos = worldPos.clone();
     pos.project(camera);
-    
+   
     // Check if behind camera
     if (pos.z > 1) return null;
-    
+   
     const x = (pos.x + 1) / 2 * lensFlareCanvas.width;
     const y = (-pos.y + 1) / 2 * lensFlareCanvas.height;
-    
+   
     return { x, y };
 }
 
@@ -2673,26 +2678,26 @@ function drawLensFlare(x, y, intensity, type) {
     const h = lensFlareCanvas.height;
     const centerX = w / 2;
     const centerY = h / 2;
-    
+   
     // Direction from sun to center (for ghost flares)
     const dx = centerX - x;
     const dy = centerY - y;
-    
+   
     // Color based on sun type
     const isUpper = type === 'upper';
     const mainColor = isUpper ? [255, 220, 100] : [255, 80, 50];
     const secondColor = isUpper ? [255, 180, 50] : [255, 50, 30];
     const thirdColor = isUpper ? [255, 255, 200] : [255, 120, 80];
-    
+   
     const alpha = intensity * FLARE_MAX_INTENSITY;
-    
+   
     // Main sun bloom - subtle glow
     let gradient = ctx.createRadialGradient(x, y, 0, x, y, 150 * intensity);
     gradient.addColorStop(0, `rgba(${mainColor[0]}, ${mainColor[1]}, ${mainColor[2]}, ${alpha * 0.3})`);
     gradient.addColorStop(0.3, `rgba(${mainColor[0]}, ${mainColor[1]}, ${mainColor[2]}, ${alpha * 0.15})`);
     gradient.addColorStop(0.6, `rgba(${secondColor[0]}, ${secondColor[1]}, ${secondColor[2]}, ${alpha * 0.05})`);
     gradient.addColorStop(1, `rgba(${secondColor[0]}, ${secondColor[1]}, ${secondColor[2]}, 0)`);
-    
+   
     // Anamorphic streak (horizontal) - only when looking almost directly at sun
     if (intensity > 0.8) {
         const streakAlpha = (intensity - 0.8) / 0.2; // Fade in from 0.8 to 1.0
@@ -2708,7 +2713,7 @@ function drawLensFlare(x, y, intensity, type) {
         ctx.fillRect(x - 400, y - 200, 800, 400);
         ctx.restore();
     }
-    
+   
     // Ghost flares along the line through center
     const ghosts = [
         { dist: 0.3, size: 40, opacity: 0.15 },
@@ -2718,12 +2723,12 @@ function drawLensFlare(x, y, intensity, type) {
         { dist: 1.3, size: 50, opacity: 0.1 },
         { dist: 1.6, size: 25, opacity: 0.15 }
     ];
-    
+   
     ghosts.forEach(ghost => {
         const gx = x + dx * ghost.dist;
         const gy = y + dy * ghost.dist;
         const gSize = ghost.size * (0.5 + intensity * 0.5);
-        
+       
         gradient = ctx.createRadialGradient(gx, gy, 0, gx, gy, gSize);
         gradient.addColorStop(0, `rgba(${thirdColor[0]}, ${thirdColor[1]}, ${thirdColor[2]}, ${ghost.opacity * alpha})`);
         gradient.addColorStop(0.5, `rgba(${mainColor[0]}, ${mainColor[1]}, ${mainColor[2]}, ${ghost.opacity * alpha * 0.5})`);
@@ -2733,13 +2738,13 @@ function drawLensFlare(x, y, intensity, type) {
         ctx.arc(gx, gy, gSize, 0, Math.PI * 2);
         ctx.fill();
     });
-    
+   
     // Hexagonal flare artifact
     if (intensity > 0.5) {
         const hexX = x + dx * 0.4;
         const hexY = y + dy * 0.4;
         const hexSize = 35 * intensity;
-        
+       
         ctx.strokeStyle = `rgba(${thirdColor[0]}, ${thirdColor[1]}, ${thirdColor[2]}, ${alpha * 0.3})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -2757,16 +2762,16 @@ function drawLensFlare(x, y, intensity, type) {
 
 function updateUnderworldLuminaryLink() {
     if (!underworldLuminaryLine || !underworldLuminaryDistanceSprite || !underworldSunMesh || !underworldMoonMesh) return;
-    
+   
     // Always calculate and display distance in info panel
     const distance = Math.round(underworldSunMesh.position.distanceTo(underworldMoonMesh.position));
     document.getElementById('underworld-luminary-distance-info').textContent = distance.toLocaleString() + ' mi';
-    
+   
     const showLink = underworldLuminaryLinkVisible && underworldSunVisible && underworldMoonVisible;
     underworldLuminaryLine.visible = showLink;
     underworldLuminaryDistanceSprite.visible = showLink;
     if (!showLink) return;
-    
+   
     // Update line positions
     const positions = underworldLuminaryLine.geometry.attributes.position.array;
     const colors = underworldLuminaryLine.geometry.attributes.color.array;
@@ -2777,7 +2782,7 @@ function updateUnderworldLuminaryLink() {
     colors[3] = 0.27; colors[4] = 0.27; colors[5] = 0.67;
     underworldLuminaryLine.geometry.attributes.position.needsUpdate = true;
     underworldLuminaryLine.geometry.attributes.color.needsUpdate = true;
-    
+   
     // Update floating label
     const { canvas, texture } = underworldLuminaryDistanceSprite.userData;
     const ctx = canvas.getContext('2d');
@@ -2807,6 +2812,13 @@ function updateUnderworldLuminaryLink() {
             // Update angles based on speed
             sunAngle += 0.001 * SUN_SPEED;
             moonAngle += 0.001 * MOON_SPEED;
+            
+                // Smooth brightness transitions
+    const brightnessLerpSpeed = 0.02;
+    displayedSunBrightness += (SUN_BRIGHTNESS - displayedSunBrightness) * brightnessLerpSpeed;
+    displayedMoonBrightness += (MOON_BRIGHTNESS - displayedMoonBrightness) * brightnessLerpSpeed;
+    displayedUSunBrightness += (USUN_BRIGHTNESS - displayedUSunBrightness) * brightnessLerpSpeed;
+    displayedUMoonBrightness += (UMOON_BRIGHTNESS - displayedUMoonBrightness) * brightnessLerpSpeed;
            
             // Update radial phase (slower cycle for seasons)
             sunRadialPhase += 0.0001 * SUN_SPEED;
@@ -2891,23 +2903,23 @@ function updateUnderworldLuminaryLink() {
             if (sunMesh && sunVisible) {
                 sunMesh.position.set(sunX, sunY, sunZ);
                 // Dim sun mesh based on brightness (normalize to 0-1 range, default 1.5)
-                const sunBrightnessFactor = Math.min(1, SUN_BRIGHTNESS / 1.5);
-    if (SUN_BRIGHTNESS < 0.2) {
-        // Go black at very low brightness (0.1 = minimum slider = full black)
-        const blackFactor = (SUN_BRIGHTNESS - 0.1) / 0.1;
+                const sunBrightnessFactor = Math.min(1, displayedSunBrightness / 1.5);
+                if (displayedSunBrightness < 0.2) {
+                    // Go black at very low brightness (0.1 = minimum slider = full black)
+                    const blackFactor = (displayedSunBrightness - 0.1) / 0.1;
                     sunMesh.material.color.setRGB(blackFactor * sunBrightnessFactor, blackFactor * sunBrightnessFactor * 0.87, blackFactor * sunBrightnessFactor * 0.27);
                 } else {
                     sunMesh.material.color.setRGB(sunBrightnessFactor, sunBrightnessFactor * 0.87, sunBrightnessFactor * 0.27);
                 }
-                sunMesh.visible = SUN_BRIGHTNESS > 0.05;
+                const sunGlowFade = Math.min(1, Math.max(0, (displayedSunBrightness - 0.1) / 0.4));
                 sunGlow.position.copy(sunMesh.position);
-                sunGlow.visible = SUN_BRIGHTNESS > 0.5;
-                sunGlow.material.opacity = sunBrightnessFactor;
+                sunGlow.visible = displayedSunBrightness > 0.1;
+                sunGlow.material.opacity = sunBrightnessFactor * sunGlowFade;
                 sunHalo.position.copy(sunMesh.position);
-                sunHalo.visible = SUN_BRIGHTNESS > 0.5;
-                sunHalo.material.opacity = sunBrightnessFactor * 0.3;
+                sunHalo.visible = displayedSunBrightness > 0.1;
+                sunHalo.material.opacity = sunBrightnessFactor * 0.3 * sunGlowFade;
                 sunLight.position.copy(sunMesh.position);
-                sunLight.intensity = SUN_BRIGHTNESS > 0.2 ? (realisticLighting ? SUN_BRIGHTNESS * 3 : SUN_BRIGHTNESS) : 0;
+                sunLight.intensity = displayedSunBrightness > 0.2 ? (realisticLighting ? displayedSunBrightness * 3 : displayedSunBrightness) : 0;
                 sunLight.distance = SUN_LIGHT_RADIUS;
             } else if (sunMesh) {
                 sunMesh.visible = false;
@@ -2927,18 +2939,18 @@ function updateUnderworldLuminaryLink() {
                 ambientLight.intensity = 0;
             }
            
-            // Update Moon position with INTERFERENCE model
+// Update Moon position with INTERFERENCE model
             // Moon LOW (radialFactor HIGH, close to strata) = MORE interference = DIMMER
             // Moon HIGH (radialFactor LOW, away from strata) = LESS interference = BRIGHTER
             // SUBTLE effect through most of journey, but COMPLETE blackout at absolute lowest
             const rawInterference = moonInterferenceEnabled ? (1 - moonRadialFactor) : 1;
             // Custom curve: 100% at top, ~80% at 50% down, ~65% at 25% down, 0% at bottom
             const moonInterferenceFactor = Math.pow(rawInterference, INTERFERENCE_DURATION);
-            const moonEffectiveBrightness = MOON_BRIGHTNESS * moonInterferenceFactor;
+            const moonEffectiveBrightness = displayedMoonBrightness * moonInterferenceFactor;
             const moonGlowOpacity = moonInterferenceFactor;
             const moonHaloOpacity = moonInterferenceFactor * 0.25;
             
-                        // Update Sun/Moon coordinate displays
+            // Update Sun/Moon coordinate displays
             if (sunMesh && sunVisible) {
                 // Project sun position onto shell for shell coordinates
                 const sunShellPoint = sunMesh.position.clone().normalize().multiplyScalar(SHELL_RADIUS);
@@ -2972,20 +2984,20 @@ function updateUnderworldLuminaryLink() {
                 moonMesh.position.set(moonX, moonY, moonZ);
                 
                 // Combine brightness slider AND interference factor
-                const moonBrightnessFactor = Math.min(1, MOON_BRIGHTNESS / 0.8);
+                const moonBrightnessFactor = Math.min(1, displayedMoonBrightness / 0.8);
                 const combinedMoonFactor = moonBrightnessFactor * moonInterferenceFactor;
                 
                 // Surface goes dark when either brightness is low OR interference is high
                 // Blood moon when sun is dying
                 let bloodRedFactor = 0;
-                if (SUN_BRIGHTNESS < 0.8 && SUN_BRIGHTNESS > 0.2) {
-                    bloodRedFactor = SUN_BRIGHTNESS > 0.5 
-                        ? 1 - ((SUN_BRIGHTNESS - 0.5) / 0.3)
-                        : (SUN_BRIGHTNESS - 0.2) / 0.3;
+                if (displayedSunBrightness < 0.8 && displayedSunBrightness > 0.2) {
+                    bloodRedFactor = displayedSunBrightness > 0.5 
+                        ? 1 - ((displayedSunBrightness - 0.5) / 0.3)
+                        : (displayedSunBrightness - 0.2) / 0.3;
                 }
                 
                 // Fade to black as brightness slider approaches minimum (0.1)
-                const moonBlackFactor = MOON_BRIGHTNESS < 0.2 ? Math.max(0, (MOON_BRIGHTNESS - 0.1) / 0.1) : 1;
+                const moonBlackFactor = displayedMoonBrightness < 0.2 ? Math.max(0, (displayedMoonBrightness - 0.1) / 0.1) : 1;
                 
                 if (combinedMoonFactor < 0.02 || moonBlackFactor <= 0) {
                     moonMesh.material.color.setRGB(0, 0, 0);
@@ -2995,15 +3007,16 @@ function updateUnderworldLuminaryLink() {
                     const b = combinedMoonFactor * (1.02 - bloodRedFactor * 0.9) * moonBlackFactor;
                     moonMesh.material.color.setRGB(r, g, b);
                 }
-                moonMesh.visible = MOON_BRIGHTNESS > 0.05;
+                moonMesh.visible = displayedMoonBrightness > 0.05;
                
                 moonGlow.position.copy(moonMesh.position);
-                moonGlow.visible = combinedMoonFactor > 0.02 && MOON_BRIGHTNESS > 0.1;
-                moonGlow.material.opacity = moonGlowOpacity * 0.6 * combinedMoonFactor;
-               
+                const moonGlowFade = Math.min(1, Math.max(0, (displayedMoonBrightness - 0.1) / 0.4));
+                moonGlow.visible = displayedMoonBrightness > 0.1;
+                moonGlow.material.opacity = moonGlowOpacity * 0.6 * combinedMoonFactor * moonGlowFade;
+
                 moonHalo.position.copy(moonMesh.position);
-moonHalo.visible = combinedMoonFactor > 0.02 && MOON_BRIGHTNESS > 0.5;
-                moonHalo.material.opacity = moonHaloOpacity * 1.4 * combinedMoonFactor;
+                moonHalo.visible = displayedMoonBrightness > 0.1;
+                moonHalo.material.opacity = moonHaloOpacity * 1.4 * combinedMoonFactor * moonGlowFade;
                
                 moonLight.position.copy(moonMesh.position);
                 moonLight.intensity = realisticLighting ? moonEffectiveBrightness * 8 * combinedMoonFactor : moonEffectiveBrightness * 4 * combinedMoonFactor;
@@ -3013,46 +3026,48 @@ moonHalo.visible = combinedMoonFactor > 0.02 && MOON_BRIGHTNESS > 0.5;
                 moonGlow.visible = false;
                 moonHalo.visible = false;
                 moonLight.intensity = 0;
-            }          // ============ UNDERWORLD LUMINARIES UPDATE ============
-            // Mirror physics of upper luminaries, positioned BELOW the disk
+            }       
             
+            // ============ UNDERWORLD LUMINARIES UPDATE ============
+            // Mirror physics of upper luminaries, positioned BELOW the disk
+           
             underworldSunAngle += 0.001 * USUN_SPEED;
             underworldMoonAngle += 0.001 * UMOON_SPEED;
             underworldSunRadialPhase += 0.0001 * USUN_SPEED;
             underworldMoonRadialPhase += 0.00015 * UMOON_SPEED;
-            
+           
             const uSunRadialFactor = 0.5 + 0.5 * Math.sin(underworldSunRadialPhase);
             const uMoonRadialFactor = 0.5 + 0.5 * Math.sin(underworldMoonRadialPhase);
-            
+           
             const uSunRadialPos = USUN_RADIUS_MIN + (USUN_RADIUS_MAX - USUN_RADIUS_MIN) * uSunRadialFactor;
             const uMoonRadialPos = UMOON_RADIUS_MIN + (UMOON_RADIUS_MAX - UMOON_RADIUS_MIN) * uMoonRadialFactor;
-            
+           
             const uSunDynamicHeight = USUN_HEIGHT * (1.0 - uSunRadialFactor * 0.3);
             const uMoonDynamicHeight = UMOON_HEIGHT * (1.0 - uMoonRadialFactor * 0.3);
-            
+           
             // UNDERWORLD positions - BELOW the disk (negative Y)
             const uSunX = Math.cos(underworldSunAngle) * uSunRadialPos;
             const uSunZ = Math.sin(underworldSunAngle) * uSunRadialPos;
             const uSunY = -(uSunDynamicHeight + (DISK_THICKNESS / 2)); // NEGATIVE - below disk
-            
+           
             const uMoonX = Math.cos(underworldMoonAngle) * uMoonRadialPos;
             const uMoonZ = Math.sin(underworldMoonAngle) * uMoonRadialPos;
             const uMoonY = -(uMoonDynamicHeight + (DISK_THICKNESS / 2)); // NEGATIVE - below disk
-            
+           
             // Underworld Sun phase name
             let uSunPhaseName = 'Full';
             if (uSunRadialFactor > 0.95) uSunPhaseName = 'New';
             else if (uSunRadialFactor > 0.75) uSunPhaseName = 'Crescent';
             else if (uSunRadialFactor > 0.5) uSunPhaseName = 'Quarter';
             else if (uSunRadialFactor > 0.25) uSunPhaseName = 'Gibbous';
-            
+           
             // Underworld Moon phase name
             let uMoonPhaseName = 'Full';
             if (uMoonRadialFactor > 0.95) uMoonPhaseName = 'New';
             else if (uMoonRadialFactor > 0.75) uMoonPhaseName = 'Crescent';
             else if (uMoonRadialFactor > 0.5) uMoonPhaseName = 'Quarter';
             else if (uMoonRadialFactor > 0.25) uMoonPhaseName = 'Gibbous';
-            
+           
             // Update info panel
             document.getElementById('usun-altitude-info').textContent = Math.round(uSunDynamicHeight).toLocaleString() + ' mi';
             document.getElementById('usun-orbital-info').textContent = Math.round(uSunRadialPos).toLocaleString() + ' mi';
@@ -3060,7 +3075,7 @@ moonHalo.visible = combinedMoonFactor > 0.02 && MOON_BRIGHTNESS > 0.5;
             document.getElementById('umoon-altitude-info').textContent = Math.round(uMoonDynamicHeight).toLocaleString() + ' mi';
             document.getElementById('umoon-orbital-info').textContent = Math.round(uMoonRadialPos).toLocaleString() + ' mi';
             document.getElementById('umoon-phase-info').textContent = uMoonPhaseName;
-            
+           
             // Update Underworld Sun position
             if (underworldSunMesh && underworldSunVisible) {
                 underworldSunMesh.position.set(uSunX, uSunY, uSunZ);
@@ -3078,29 +3093,29 @@ moonHalo.visible = combinedMoonFactor > 0.02 && MOON_BRIGHTNESS > 0.5;
                 underworldSunHalo.visible = false;
                 underworldSunLight.intensity = 0;
             }
-            
+           
             // Underworld Moon interference (same physics as upper moon)
 const uRawInterference = underworldMoonInterferenceEnabled ? (1 - uMoonRadialFactor) : 1;
 const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DURATION);
-            
-            // Update Underworld Moon position
+           
+// Update Underworld Moon position
             if (underworldMoonMesh && underworldMoonVisible) {
                 underworldMoonMesh.position.set(uMoonX, uMoonY, uMoonZ);
                 
                 // Combine brightness slider AND interference factor
-                const uMoonBrightnessFactor = Math.min(1, UMOON_BRIGHTNESS / 0.8);
+                const uMoonBrightnessFactor = Math.min(1, displayedUMoonBrightness / 0.8);
                 const combinedUMoonFactor = uMoonBrightnessFactor * uMoonInterferenceFactor;
                 
                 // Blood moon when underworld sun is dying
                 let uBloodRedFactor = 0;
-                if (USUN_BRIGHTNESS < 0.8 && USUN_BRIGHTNESS > 0.2) {
-                    uBloodRedFactor = USUN_BRIGHTNESS > 0.5 
-                        ? 1 - ((USUN_BRIGHTNESS - 0.5) / 0.3)
-                        : (USUN_BRIGHTNESS - 0.2) / 0.3;
+                if (displayedUSunBrightness < 0.8 && displayedUSunBrightness > 0.2) {
+                    uBloodRedFactor = displayedUSunBrightness > 0.5 
+                        ? 1 - ((displayedUSunBrightness - 0.5) / 0.3)
+                        : (displayedUSunBrightness - 0.2) / 0.3;
                 }
                 
                 // Fade to black as brightness slider approaches minimum (0.1)
-                const uMoonBlackFactor = UMOON_BRIGHTNESS < 0.2 ? Math.max(0, (UMOON_BRIGHTNESS - 0.1) / 0.1) : 1;
+                const uMoonBlackFactor = displayedUMoonBrightness < 0.2 ? Math.max(0, (displayedUMoonBrightness - 0.1) / 0.1) : 1;
                 
                 if (combinedUMoonFactor < 0.02 || uMoonBlackFactor <= 0) {
                     underworldMoonMesh.material.color.setRGB(0, 0, 0);
@@ -3110,18 +3125,19 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
                     const b = combinedUMoonFactor * (0.67 - uBloodRedFactor * 0.6) * uMoonBlackFactor;
                     underworldMoonMesh.material.color.setRGB(r, g, b);
                 }
-                underworldMoonMesh.visible = UMOON_BRIGHTNESS > 0.05;
+                underworldMoonMesh.visible = displayedUMoonBrightness > 0.05;
                 
                 underworldMoonGlow.position.copy(underworldMoonMesh.position);
-                underworldMoonGlow.visible = combinedUMoonFactor > 0.02 && UMOON_BRIGHTNESS > 0.5;
-                underworldMoonGlow.material.opacity = combinedUMoonFactor * 0.6;
-                
+                const uMoonGlowFade = Math.min(1, Math.max(0, (displayedUMoonBrightness - 0.1) / 0.4));
+                underworldMoonGlow.visible = displayedUMoonBrightness > 0.1;
+                underworldMoonGlow.material.opacity = combinedUMoonFactor * 0.6 * uMoonGlowFade;
+
                 underworldMoonHalo.position.copy(underworldMoonMesh.position);
-                underworldMoonHalo.visible = combinedUMoonFactor > 0.02 && UMOON_BRIGHTNESS > 0.5;
-                underworldMoonHalo.material.opacity = combinedUMoonFactor * 0.5;
+                underworldMoonHalo.visible = displayedUMoonBrightness > 0.1;
+                underworldMoonHalo.material.opacity = combinedUMoonFactor * 0.5 * uMoonGlowFade;
                 
                 underworldMoonLight.position.copy(underworldMoonMesh.position);
-                underworldMoonLight.intensity = realisticLighting ? UMOON_BRIGHTNESS * 8 * combinedUMoonFactor : UMOON_BRIGHTNESS * 4 * combinedUMoonFactor;
+                underworldMoonLight.intensity = realisticLighting ? displayedUMoonBrightness * 8 * combinedUMoonFactor : displayedUMoonBrightness * 4 * combinedUMoonFactor;
                 underworldMoonLight.distance = UMOON_LIGHT_RADIUS;
             } else if (underworldMoonMesh) {
                 underworldMoonMesh.visible = false;
@@ -3129,28 +3145,28 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
                 underworldMoonHalo.visible = false;
                 underworldMoonLight.intensity = 0;
             }
-                        // Update Underworld Sun/Moon coordinate displays
             // Update Underworld Sun position
             if (underworldSunMesh && underworldSunVisible) {
                 underworldSunMesh.position.set(uSunX, uSunY, uSunZ);
                 // Dim underworld sun mesh based on brightness (normalize to 0-1, default 1.5)
-                const uSunBrightnessFactor = Math.min(1, USUN_BRIGHTNESS / 1.5);
-    if (USUN_BRIGHTNESS < 0.2) {
-        // Go black at very low brightness (0.1 = minimum slider = full black)
-        const blackFactor = (USUN_BRIGHTNESS - 0.1) / 0.1;
+                const uSunBrightnessFactor = Math.min(1, displayedUSunBrightness / 1.5);
+                if (displayedUSunBrightness < 0.2) {
+                    // Go black at very low brightness (0.1 = minimum slider = full black)
+                    const blackFactor = (displayedUSunBrightness - 0.1) / 0.1;
                     underworldSunMesh.material.color.setRGB(blackFactor * uSunBrightnessFactor, blackFactor * uSunBrightnessFactor * 0.13, blackFactor * uSunBrightnessFactor * 0.13);
                 } else {
                     underworldSunMesh.material.color.setRGB(uSunBrightnessFactor, uSunBrightnessFactor * 0.13, uSunBrightnessFactor * 0.13);
                 }
-                underworldSunMesh.visible = USUN_BRIGHTNESS > 0.05;
+                underworldSunMesh.visible = displayedUSunBrightness > 0.05;
                 underworldSunGlow.position.copy(underworldSunMesh.position);
-underworldSunGlow.visible = USUN_BRIGHTNESS > 0.5;
-                underworldSunGlow.material.opacity = uSunBrightnessFactor;
+                const uSunGlowFade = Math.min(1, Math.max(0, (displayedUSunBrightness - 0.1) / 0.4));
+                underworldSunGlow.visible = displayedUSunBrightness > 0.1;
+                underworldSunGlow.material.opacity = uSunBrightnessFactor * uSunGlowFade;
                 underworldSunHalo.position.copy(underworldSunMesh.position);
-                underworldSunHalo.visible = USUN_BRIGHTNESS > 0.5;
-                underworldSunHalo.material.opacity = uSunBrightnessFactor * 0.3;
+                underworldSunHalo.visible = displayedUSunBrightness > 0.1;
+                underworldSunHalo.material.opacity = uSunBrightnessFactor * 0.3 * uSunGlowFade;
                 underworldSunLight.position.copy(underworldSunMesh.position);
-underworldSunLight.intensity = USUN_BRIGHTNESS > 0.2 ? (realisticLighting ? USUN_BRIGHTNESS * 3 : USUN_BRIGHTNESS) : 0;
+                underworldSunLight.intensity = displayedUSunBrightness > 0.2 ? (realisticLighting ? displayedUSunBrightness * 3 : displayedUSunBrightness) : 0;
                 underworldSunLight.distance = USUN_LIGHT_RADIUS;
                 
                 const uSunShellPoint = underworldSunMesh.position.clone().normalize().multiplyScalar(SHELL_RADIUS);
@@ -3168,7 +3184,7 @@ underworldSunLight.intensity = USUN_BRIGHTNESS > 0.2 ? (realisticLighting ? USUN
                 document.getElementById('usun-shell-coords').textContent = '--';
                 document.getElementById('usun-strata-coords').textContent = '--';
             }
-            
+           
             if (underworldMoonMesh && underworldMoonVisible) {
                 const uMoonShellPoint = underworldMoonMesh.position.clone().normalize().multiplyScalar(SHELL_RADIUS);
                 const uMoonShellCoords = getShellCoordinates(uMoonShellPoint);
@@ -3311,7 +3327,7 @@ underworldSunLight.intensity = USUN_BRIGHTNESS > 0.2 ? (realisticLighting ? USUN
             frostShell.visible = false;
             scene.add(frostShell);
             frostShellMaterial.uniforms.uShellRadius.value = SHELL_RADIUS;
-            
+           
             updateInfoPanel();
         }
        
@@ -3470,15 +3486,15 @@ function getSunViewLookTarget() {
     const baseForward = new THREE.Vector3(Math.sin(sunAngle), 0, -Math.cos(sunAngle));
     const baseUp = new THREE.Vector3(0, 1, 0);
     const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
-    
+   
     const pitchedForward = baseForward.clone()
         .multiplyScalar(Math.cos(luminaryViewAngles.pitch))
         .add(baseUp.clone().multiplyScalar(Math.sin(luminaryViewAngles.pitch)));
-    
+   
     const finalDir = pitchedForward.clone()
         .multiplyScalar(Math.cos(luminaryViewAngles.yaw))
         .add(baseRight.clone().multiplyScalar(Math.sin(luminaryViewAngles.yaw)));
-    
+   
     return sunView.position.clone().add(finalDir.multiplyScalar(lookDistance));
 }
 
@@ -3497,15 +3513,15 @@ function getMoonViewLookTarget() {
     const baseForward = new THREE.Vector3(Math.sin(moonAngle), 0, -Math.cos(moonAngle));
     const baseUp = new THREE.Vector3(0, 1, 0);
     const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
-    
+   
     const pitchedForward = baseForward.clone()
         .multiplyScalar(Math.cos(luminaryViewAngles.pitch))
         .add(baseUp.clone().multiplyScalar(Math.sin(luminaryViewAngles.pitch)));
-    
+   
     const finalDir = pitchedForward.clone()
         .multiplyScalar(Math.cos(luminaryViewAngles.yaw))
         .add(baseRight.clone().multiplyScalar(Math.sin(luminaryViewAngles.yaw)));
-    
+   
     return moonView.position.clone().add(finalDir.multiplyScalar(lookDistance));
 }
 
@@ -3524,15 +3540,15 @@ function getUSunViewLookTarget() {
     const baseForward = new THREE.Vector3(Math.sin(underworldSunAngle), 0, -Math.cos(underworldSunAngle));
     const baseUp = new THREE.Vector3(0, -1, 0);
     const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
-    
+   
     const pitchedForward = baseForward.clone()
         .multiplyScalar(Math.cos(underworldLuminaryViewAngles.pitch))
         .add(baseUp.clone().multiplyScalar(Math.sin(underworldLuminaryViewAngles.pitch)));
-    
+   
     const finalDir = pitchedForward.clone()
         .multiplyScalar(Math.cos(underworldLuminaryViewAngles.yaw))
         .add(baseRight.clone().multiplyScalar(Math.sin(underworldLuminaryViewAngles.yaw)));
-    
+   
     return sunView.position.clone().add(finalDir.multiplyScalar(lookDistance));
 }
 
@@ -3551,15 +3567,15 @@ function getUMoonViewLookTarget() {
     const baseForward = new THREE.Vector3(Math.sin(underworldMoonAngle), 0, -Math.cos(underworldMoonAngle));
     const baseUp = new THREE.Vector3(0, -1, 0);
     const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
-    
+   
     const pitchedForward = baseForward.clone()
         .multiplyScalar(Math.cos(underworldLuminaryViewAngles.pitch))
         .add(baseUp.clone().multiplyScalar(Math.sin(underworldLuminaryViewAngles.pitch)));
-    
+   
     const finalDir = pitchedForward.clone()
         .multiplyScalar(Math.cos(underworldLuminaryViewAngles.yaw))
         .add(baseRight.clone().multiplyScalar(Math.sin(underworldLuminaryViewAngles.yaw)));
-    
+   
     return moonView.position.clone().add(finalDir.multiplyScalar(lookDistance));
 }
 
@@ -3641,10 +3657,10 @@ document.getElementById('earth-radius').addEventListener('input', (e) => {
 });
 
 document.getElementById('strata-thickness').addEventListener('input', (e) => { DISK_THICKNESS = parseInt(e.target.value); document.getElementById('strata-thickness-value').textContent = DISK_THICKNESS + ' mi'; createGeometry(); createStrataGrid(); createStrataGridLabels(); createStrataHoverMesh(); });
-document.getElementById('starfield-radius').addEventListener('input', (e) => { 
-    STARFIELD_RADIUS = parseInt(e.target.value); 
-    document.getElementById('starfield-radius-value').textContent = STARFIELD_RADIUS + ' mi'; 
-    createStarfield(); 
+document.getElementById('starfield-radius').addEventListener('input', (e) => {
+    STARFIELD_RADIUS = parseInt(e.target.value);
+    document.getElementById('starfield-radius-value').textContent = STARFIELD_RADIUS + ' mi';
+    createStarfield();
     if (starfield) starfield.visible = starfieldVisible;
     nebulae.forEach(n => n.visible = nebulaeVisible);
 });
@@ -3685,9 +3701,9 @@ document.getElementById('starfield-radius').addEventListener('input', (e) => {
         });
         document.getElementById('sun-light-radius').addEventListener('input', (e) => { SUN_LIGHT_RADIUS = parseInt(e.target.value); document.getElementById('sun-light-radius-value').textContent = SUN_LIGHT_RADIUS + ' mi'; });
         document.getElementById('moon-light-radius').addEventListener('input', (e) => { MOON_LIGHT_RADIUS = parseInt(e.target.value); document.getElementById('moon-light-radius-value').textContent = MOON_LIGHT_RADIUS + ' mi'; });
-        
+       
         document.getElementById('interference-duration').addEventListener('input', (e) => { INTERFERENCE_DURATION = parseFloat(e.target.value); document.getElementById('interference-duration-value').textContent = INTERFERENCE_DURATION.toFixed(2); });
-        
+       
         // Underworld Sun controls
 document.getElementById('usun-speed').addEventListener('input', (e) => { USUN_SPEED = parseFloat(e.target.value); document.getElementById('usun-speed-value').textContent = USUN_SPEED.toFixed(1) + 'x'; });
 document.getElementById('usun-brightness').addEventListener('input', (e) => { USUN_BRIGHTNESS = parseFloat(e.target.value); document.getElementById('usun-brightness-value').textContent = USUN_BRIGHTNESS.toFixed(1); });
@@ -3717,11 +3733,11 @@ function resetAllViewStates() {
     isUMoonView = false;
     isUnderworldEdgeView = false;
     isUnderworldMidView = false;
-    
+   
     // Stop edge cold effects
     stopUpperEdgeCold();
     stopUnderEdgeCold();
-    
+   
     // Remove active class from ALL view buttons
     document.getElementById('ground-view-button').classList.remove('active');
     document.getElementById('underworld-view-button').classList.remove('active');
@@ -3733,7 +3749,7 @@ function resetAllViewStates() {
     document.getElementById('moon-view-button').classList.remove('active');
     document.getElementById('usun-view-button').classList.remove('active');
     document.getElementById('umoon-view-button').classList.remove('active');
-    
+   
     // Reset all button text to defaults
     document.getElementById('ground-view-button').textContent = 'Upper World Ground View';
     document.getElementById('underworld-view-button').textContent = 'Underworld Ground View';
@@ -3760,7 +3776,7 @@ function exitToOrbit() {
         // Button handlers
         document.getElementById('ground-view-button').addEventListener('click', () => {
             const isCurrentlyGroundCenter = isGroundView && !isUnderworldView && !isEdgeView && !isMidView && !isSunView && !isMoonView && !isUSunView && !isUMoonView && !isUnderworldEdgeView && !isUnderworldMidView;
-            
+           
             if (!isGroundView) {
                 savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
                 resetAllViewStates();
@@ -3789,7 +3805,7 @@ function exitToOrbit() {
         });
         document.getElementById('underworld-view-button').addEventListener('click', () => {
             const isCurrentlyUnderworldCenter = isGroundView && isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;
-            
+           
             if (!isGroundView) {
                 savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
                 resetAllViewStates();
@@ -3819,7 +3835,7 @@ function exitToOrbit() {
        
  document.getElementById('edge-view-button').addEventListener('click', () => {
             const isCurrentlyEdge = isGroundView && isEdgeView && !isUnderworldView;
-            
+           
             if (!isGroundView) {
                 savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
                 resetAllViewStates();
@@ -3857,7 +3873,7 @@ function exitToOrbit() {
        
         document.getElementById('mid-view-button').addEventListener('click', () => {
             const isCurrentlyMid = isGroundView && isMidView && !isUnderworldView;
-            
+           
             if (!isGroundView) {
                 savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
                 resetAllViewStates();
@@ -3890,7 +3906,7 @@ function exitToOrbit() {
         });
         document.getElementById('underworld-edge-view-button').addEventListener('click', () => {
             const isCurrentlyUnderworldEdge = isGroundView && isUnderworldEdgeView;
-            
+           
             if (!isGroundView) {
                 savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
                 resetAllViewStates();
@@ -3923,7 +3939,7 @@ function exitToOrbit() {
         });
         document.getElementById('underworld-mid-view-button').addEventListener('click', () => {
             const isCurrentlyUnderworldMid = isGroundView && isUnderworldMidView;
-            
+           
             if (!isGroundView) {
                 savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
                 resetAllViewStates();
@@ -4130,10 +4146,10 @@ document.getElementById('toggle-strata-grid-button').addEventListener('click', (
         });
         document.getElementById('toggle-resonance-button').addEventListener('click', () => { shellResonating = !shellResonating; document.getElementById('toggle-resonance-button').textContent = shellResonating ? 'Stop Resonance' : 'Shell Resonance'; });
         document.getElementById('toggle-nebula-button').addEventListener('click', () => { nebulaeVisible = !nebulaeVisible; nebulae.forEach(n => n.visible = nebulaeVisible); document.getElementById('toggle-nebula-button').textContent = nebulaeVisible ? 'Hide Nebulae' : 'Show Nebulae'; });
-document.getElementById('toggle-starfield-button').addEventListener('click', () => { 
+document.getElementById('toggle-starfield-button').addEventListener('click', () => {
     starfieldVisible = !starfieldVisible;
-    if (starfield) starfield.visible = starfieldVisible; 
-    document.getElementById('toggle-starfield-button').textContent = starfieldVisible ? 'Hide Starfield' : 'Show Starfield'; 
+    if (starfield) starfield.visible = starfieldVisible;
+    document.getElementById('toggle-starfield-button').textContent = starfieldVisible ? 'Hide Starfield' : 'Show Starfield';
 });
         document.getElementById('toggle-horizon-button').addEventListener('click', () => { horizonVisible = !horizonVisible; horizonPlane.visible = horizonVisible; gulfLabel.visible = horizonVisible; gulfLabel2.visible = horizonVisible; document.getElementById('toggle-horizon-button').textContent = horizonVisible ? 'Hide Gulf' : 'Show Gulf'; });
         document.getElementById('toggle-ripple-button').addEventListener('click', () => { gulfRippling = !gulfRippling; document.getElementById('toggle-ripple-button').textContent = gulfRippling ? 'Stop Ripple' : 'Gulf Ripple'; document.getElementById('toggle-ripple-button').classList.toggle('active', gulfRippling); });
@@ -4267,7 +4283,7 @@ if (isSunView || isMoonView) {
     }
     if (isPanning && !isGroundView) { cameraTarget.x -= (e.clientX - previousMousePosition.x) * cameraDistance * 0.0008; cameraTarget.y += (e.clientY - previousMousePosition.y) * cameraDistance * 0.0008; }
     previousMousePosition = { x: e.clientX, y: e.clientY };
-    
+   
     // Grid coordinate tooltip
     updateGridTooltip(e);
     updateStrataTooltip(e);
@@ -4366,7 +4382,7 @@ if (starfield && !isDraggingAxis) {
                 const rotationAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(starAxisPivot.quaternion);
                 starAxisPivot.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(rotationAxis.normalize(), 0.0003 * STARFIELD_SPEED));
             }
-            
+           
             // Gulf label scaling
             if (gulfLabel && gulfLabel.visible) {
                 const camDist = camera.position.distanceTo(gulfLabel.position);
@@ -4381,12 +4397,12 @@ const scaleFactor = Math.min(4000, Math.max(200, camDist * 0.1));
             // Update Fimbulwinter systems (dying sun/moon cold)
             updateUpperFimbulwinter();
             updateLowerFimbulwinter();
-            
+           
 // Fade stars and nebulae during Fimbulwinter - INDEPENDENT HEMISPHERES
 if (starfieldMaterial) {
     starfieldMaterial.uniforms.uUpperFimbul.value = displayedUpperFrost;
     starfieldMaterial.uniforms.uLowerFimbul.value = displayedLowerFrost;
-    
+   
     // Nebulae fade based on whichever hemisphere they're in
     nebulae.forEach(n => {
         const isUpper = n.position.y > 0;
@@ -4401,7 +4417,7 @@ if (starfieldMaterial) {
         }
     });
 }
-            
+           
             updateFimbulwinterFrost();
             updateFrostShell(elapsedTime);
             // Update edge cold systems
@@ -4409,13 +4425,13 @@ if (starfieldMaterial) {
             updateUnderEdgeCold();
             updateLensFlare();
 
-            
+           
             // Apply camera shiver at edge OR from Fimbulwinter
             const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
             const edgeShiver = inUnderworldView ? underShiverIntensity : upperShiverIntensity;
             const fimbulShiver = inUnderworldView ? lowerFimbulShiverIntensity : upperFimbulShiverIntensity;
             const totalShiver = Math.max(edgeShiver, fimbulShiver);
-            
+           
             if (totalShiver > 0 && isGroundView) {
                 camera.position.x += (Math.random() - 0.5) * totalShiver;
                 camera.position.y += (Math.random() - 0.5) * totalShiver * 0.5;
