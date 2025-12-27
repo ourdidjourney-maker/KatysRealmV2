@@ -3605,6 +3605,10 @@ document.getElementById('earth-radius').addEventListener('input', (e) => {
     createStrataGrid();
     createStrataGridLabels();
     createStrataHoverMesh();
+    shellWireframe.visible = shellVisible;
+    horizonPlane.visible = horizonVisible;
+    if (gulfLabel) gulfLabel.visible = horizonVisible;
+    if (gulfLabel2) gulfLabel2.visible = horizonVisible;
 });
 
 document.getElementById('strata-thickness').addEventListener('input', (e) => { DISK_THICKNESS = parseInt(e.target.value); document.getElementById('strata-thickness-value').textContent = DISK_THICKNESS + ' mi'; createGeometry(); createStrataGrid(); createStrataGridLabels(); createStrataHoverMesh(); });
