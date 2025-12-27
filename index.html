@@ -2033,12 +2033,12 @@ function updateUpperFimbulwinter() {
     // Only build intensity when in upper ground-level views
     const inUpperGroundView = isGroundView && !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;
     
-    if (!inUpperGroundView) {
-        upperFimbulwinterIntensity = 0;
-        upperFimbulwinterActive = false;
-        upperFimbulShiverIntensity = 0;
-        return;
-    }
+if (!inUpperGroundView) {
+    upperFimbulwinterIntensity = 0;
+    upperFimbulwinterActive = false;
+    upperFimbulShiverIntensity = 0;
+    return;
+}
     
     const targetIntensity = calculateUpperFimbulwinterIntensity();
     
@@ -2090,12 +2090,12 @@ function updateLowerFimbulwinter() {
     // Only build intensity when in underworld ground-level views
     const inLowerGroundView = isGroundView && (isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView);
     
-    if (!inLowerGroundView) {
-        lowerFimbulwinterIntensity = 0;
-        lowerFimbulwinterActive = false;
-        lowerFimbulShiverIntensity = 0;
-        return;
-    }
+if (!inLowerGroundView) {
+    lowerFimbulwinterIntensity = 0;
+    lowerFimbulwinterActive = false;
+    lowerFimbulShiverIntensity = 0;
+    return;
+}
     
     // INDEPENDENT SYSTEM - duplicated logic, no sharing
     const targetIntensity = calculateLowerFimbulwinterIntensity();
@@ -4362,7 +4362,7 @@ const scaleFactor = Math.min(4000, Math.max(200, camDist * 0.1));
             
             // Fade stars and nebulae during Fimbulwinter
             if (starfieldMaterial) {
-                const fimbulIntensity = Math.max(upperFimbulwinterIntensity, lowerFimbulwinterIntensity);
+                const fimbulIntensity = Math.max(displayedUpperFrost, displayedLowerFrost);
                 if (fimbulIntensity > 0.3) {
                     const fadeFactor = 1 - ((fimbulIntensity - 0.3) / 0.6);
                     starfieldMaterial.uniforms.uBrightness.value = STAR_BRIGHTNESS * fadeFactor;
