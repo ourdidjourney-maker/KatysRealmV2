@@ -1148,12 +1148,12 @@ vec3 deepFrost = vec3(0.0, 0.01, 0.03);
                     frostColor = deepFrost;
                 }
                 
-                float shimmer = sin(uTime * 3.0 + v.y * 10.0) * 0.5 + 0.5;
-                shimmer = pow(shimmer, 4.0) * 0.3 * frostIntensity;
+float shimmer = sin(uTime * 1.0 + v.y * 10.0) * 0.5 + 0.5;
+shimmer = pow(shimmer, 2.0) * frostIntensity;
                 
 vec3 finalColor = frostColor * (0.1 + crackPattern * 0.05);
 finalColor += vec3(0.02, 0.03, 0.06) * fresnel * 0.1;
-finalColor += vec3(0.0, 0.02, 0.06) * shimmer;
+finalColor += vec3(0.005, 0.01, 0.02) * shimmer;
                 
 float alpha = 0.75 + frostIntensity * 0.2;
                 alpha = clamp(alpha, 0.0, 0.95);
