@@ -1121,11 +1121,11 @@ underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1);
                 float frostIntensity = max(upperFrost, lowerFrost);
                 if (frostIntensity < 0.01) discard;
                 
-                vec3 voronoiCoord = normPos * 8.0;
+                vec3 voronoiCoord = normPos * 1.0;
                 vec2 v = voronoi(voronoiCoord);
                 float cracks = 1.0 - smoothstep(0.0, 0.15, v.x);
                 
-                vec2 v2 = voronoi(normPos * 20.0);
+                vec2 v2 = voronoi(normPos * 10.0);
                 float smallCracks = 1.0 - smoothstep(0.0, 0.1, v2.x);
                 smallCracks *= 0.5;
                 
@@ -1153,7 +1153,7 @@ vec3 deepFrost = vec3(0.0, 0.01, 0.03);
                 
 vec3 finalColor = frostColor * (0.1 + crackPattern * 0.05);
 finalColor += vec3(0.02, 0.03, 0.06) * fresnel * 0.1;
-                finalColor += shimmer;
+finalColor += vec3(0.0, 0.02, 0.06) * shimmer;
                 
 float alpha = 0.75 + frostIntensity * 0.2;
                 alpha = clamp(alpha, 0.0, 0.95);
