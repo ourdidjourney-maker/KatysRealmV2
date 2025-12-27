@@ -3123,10 +3123,10 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
 underworldSunGlow.visible = USUN_BRIGHTNESS > 0.5;
                 underworldSunGlow.material.opacity = uSunBrightnessFactor;
                 underworldSunHalo.position.copy(underworldSunMesh.position);
-                underworldSunHalo.visible = USUN_BRIGHTNESS > 0.05;
+                underworldSunHalo.visible = USUN_BRIGHTNESS > 0.5;
                 underworldSunHalo.material.opacity = uSunBrightnessFactor * 0.3;
                 underworldSunLight.position.copy(underworldSunMesh.position);
-                underworldSunLight.intensity = realisticLighting ? USUN_BRIGHTNESS * 3 : USUN_BRIGHTNESS;
+underworldSunLight.intensity = USUN_BRIGHTNESS > 0.2 ? (realisticLighting ? USUN_BRIGHTNESS * 3 : USUN_BRIGHTNESS) : 0;
                 underworldSunLight.distance = USUN_LIGHT_RADIUS;
                 
                 const uSunShellPoint = underworldSunMesh.position.clone().normalize().multiplyScalar(SHELL_RADIUS);
