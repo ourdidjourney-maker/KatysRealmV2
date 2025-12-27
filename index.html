@@ -2880,8 +2880,10 @@ function updateUnderworldLuminaryLink() {
                 sunGlow.visible = SUN_BRIGHTNESS > 0.5;
                 sunGlow.material.opacity = sunBrightnessFactor;
                 sunHalo.position.copy(sunMesh.position);
-sunHalo.visible = SUN_BRIGHTNESS > 0.5;
                 sunHalo.material.opacity = sunBrightnessFactor * 0.3;
+                sunLight.position.copy(sunMesh.position);
+                sunLight.intensity = realisticLighting ? SUN_BRIGHTNESS * 3 : SUN_BRIGHTNESS;
+                sunLight.distance = SUN_LIGHT_RADIUS;
             } else if (sunMesh) {
                 sunMesh.visible = false;
                 sunGlow.visible = false;
