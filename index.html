@@ -253,7 +253,7 @@
         <button id="toggle-underworld-sun-button">Hide Underworld Sun</button>
         <button id="toggle-underworld-moon-button">Hide Underworld Moon</button>
         <button id="toggle-axes-button">Hide Axes</button>
-        <button id="toggle-nebula-button">Hide Nebulae</button>
+<button id="toggle-nebula-button">Show Nebulae</button>
         <button id="toggle-lens-flare-button">Lens Flare</button>
         <button id="toggle-ripple-button">Gulf Ripple</button>
         <button id="toggle-strata-grid-button">Strata Coordinates</button>
@@ -410,7 +410,7 @@ let strataGridLabels = [];
 let upperStrataLabel, lowerStrataLabel, strataMidplaneLabel;
 let strataHoverMesh;
        
-let shellVisible = true, axesVisible = true, shellResonating = false, nebulaeVisible = true, horizonVisible = true, starfieldVisible = true;
+let shellVisible = true, axesVisible = true, shellResonating = false, nebulaeVisible = false, horizonVisible = true, starfieldVisible = true;
         let strataWireframe = false;
         let meteorMode = false;
         let shellWireframe, diskWireframe, diskMaterial, diskFill, diskFillMaterial, axisLine, starfield, starfieldMaterial;
@@ -742,6 +742,8 @@ let shellVisible = true, axesVisible = true, shellResonating = false, nebulaeVis
                 starAxisPivot.add(nebulaSprite);
                 nebulae.push(nebulaSprite);
             }
+            // Apply current visibility setting
+            nebulae.forEach(n => n.visible = nebulaeVisible);
         }
        
         function createStarfield() {
