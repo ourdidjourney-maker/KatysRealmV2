@@ -2880,9 +2880,10 @@ function updateUnderworldLuminaryLink() {
                 sunGlow.visible = SUN_BRIGHTNESS > 0.5;
                 sunGlow.material.opacity = sunBrightnessFactor;
                 sunHalo.position.copy(sunMesh.position);
+                sunHalo.visible = SUN_BRIGHTNESS > 0.5;
                 sunHalo.material.opacity = sunBrightnessFactor * 0.3;
                 sunLight.position.copy(sunMesh.position);
-                sunLight.intensity = realisticLighting ? SUN_BRIGHTNESS * 3 : SUN_BRIGHTNESS;
+                sunLight.intensity = SUN_BRIGHTNESS > 0.2 ? (realisticLighting ? SUN_BRIGHTNESS * 3 : SUN_BRIGHTNESS) : 0;
                 sunLight.distance = SUN_LIGHT_RADIUS;
             } else if (sunMesh) {
                 sunMesh.visible = false;
@@ -4356,7 +4357,31 @@ const scaleFactor = Math.min(4000, Math.max(200, camDist * 0.1));
             // Update Fimbulwinter systems (dying sun/moon cold)
             updateUpperFimbulwinter();
             updateLowerFimbulwinter();
- updateFimbulwinterFrost();
+            
+            // Fade stars and nebulae during Fimbulwinter
+            if (starfieldMaterial) {
+                const fimbulIntensity = Math.max(upperFimbulwinterIntensity, lowerFimbulwinterIntensity);
+                if (fimbulIntensity > 0.3) {
+                    const fadeFactor = 1 - ((fimbulIntensity - 0.3) / 0.6);
+                    starfieldMaterial.uniforms.uBrightness.value = STAR_BRIGHTNESS * fadeFactor;
+                    starfieldMaterial.uniforms.uTwinkleIntensity.value = TWINKLE_INTENSITY * fadeFactor;
+                    starfieldMaterial.uniforms.uGlowSize.value = GLOW_SIZE * fadeFactor;
+                    starfieldMaterial.uniforms.uGlowIntensity.value = GLOW_INTENSITY * fadeFactor;
+                    starfieldMaterial.uniforms.uCoreSharpness.value = CORE_SHARPNESS * fadeFactor;
+                    nebulae.forEach(n => { n.material.opacity = (0.15 + Math.random() * 0.15) * fadeFactor; });
+                    if (starfield) starfield.visible = fadeFactor > 0.01;
+                } else {
+                    starfieldMaterial.uniforms.uBrightness.value = STAR_BRIGHTNESS;
+                    starfieldMaterial.uniforms.uTwinkleIntensity.value = TWINKLE_INTENSITY;
+                    starfieldMaterial.uniforms.uGlowSize.value = GLOW_SIZE;
+                    starfieldMaterial.uniforms.uGlowIntensity.value = GLOW_INTENSITY;
+                    starfieldMaterial.uniforms.uCoreSharpness.value = CORE_SHARPNESS;
+                    nebulae.forEach(n => { n.material.opacity = 0.15 + Math.random() * 0.15; });
+                    if (starfield && starfieldVisible) starfield.visible = true;
+                }
+            }
+            
+            updateFimbulwinterFrost();
             updateFrostShell(elapsedTime);
             // Update edge cold systems
             updateUpperEdgeCold();
