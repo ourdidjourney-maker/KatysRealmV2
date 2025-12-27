@@ -337,6 +337,18 @@ let displayedSunBrightness = 1.5;
 let displayedMoonBrightness = 0.8;
 let displayedUSunBrightness = 1.5;
 let displayedUMoonBrightness = 0.8;
+// Sun flicker system (re-ignition effect)
+let sunFlickerActive = false;
+let sunFlickerStartTime = 0;
+let sunWasOff = false;
+const SUN_FLICKER_DURATION = 2500; // 2.5 seconds of flickering
+const SUN_OFF_THRESHOLD = 0.5; // Below this = "off"
+// Moon flicker system (re-ignition effect)
+let moonFlickerActive = false;
+let moonFlickerStartTime = 0;
+let moonWasOff = false;
+const MOON_FLICKER_DURATION = 2500;
+const MOON_OFF_THRESHOLD = 0.3;
 // ============ EDGE COLD SYSTEM - NIFLHEIM ============
 // Upper Edge View
 let upperEdgeSnowActive = false;
@@ -867,7 +879,7 @@ vec3 normPos = normalize(worldPos.xyz);
             scene.add(sunHalo);
            
             // Sun light
-            sunLight = new THREE.PointLight(0xffffee, SUN_BRIGHTNESS, SHELL_RADIUS * 3);
+            sunLight = new THREE.PointLight(0xffaa44, SUN_BRIGHTNESS, SHELL_RADIUS * 3);
             sunLight.castShadow = false;
             scene.add(sunLight);
            
@@ -906,7 +918,7 @@ vec3 normPos = normalize(worldPos.xyz);
             scene.add(moonHalo);
            
             // Moon light - strong blue moonlight to overpower white
-moonLight = new THREE.PointLight(0x4466ee, MOON_BRIGHTNESS * 4, SHELL_RADIUS * 3);
+            moonLight = new THREE.PointLight(0x0033ff, MOON_BRIGHTNESS * 4, SHELL_RADIUS * 3);
             moonLight.castShadow = true;
             scene.add(moonLight);
                         // ============ UNDERWORLD LUMINARIES ============
@@ -2765,6 +2777,36 @@ function updateUnderworldLuminaryLink() {
     displayedMoonBrightness += (MOON_BRIGHTNESS - displayedMoonBrightness) * brightnessLerpSpeed;
     displayedUSunBrightness += (USUN_BRIGHTNESS - displayedUSunBrightness) * brightnessLerpSpeed;
     displayedUMoonBrightness += (UMOON_BRIGHTNESS - displayedUMoonBrightness) * brightnessLerpSpeed;
+    
+    // Sun flicker effect (re-ignition)
+let sunFlickerMultiplier = 1.0;
+if (sunFlickerActive) {
+    const flickerElapsed = Date.now() - sunFlickerStartTime;
+    if (flickerElapsed < SUN_FLICKER_DURATION) {
+        // Decay: starts at 1.0, ends at 0.0
+        const flickerDecay = 1.0 - (flickerElapsed / SUN_FLICKER_DURATION);
+        // Rapid oscillation that slows down as it stabilizes
+        const flickerSpeed = 30 - (flickerDecay * 20); // 30Hz -> 10Hz
+        const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
+        // Flicker intensity decreases over time
+        sunFlickerMultiplier = 1.0 - (flicker * flickerDecay * 0.7);
+    } else {
+        sunFlickerActive = false;
+    }
+}
+// Moon flicker effect (re-ignition)
+let moonFlickerMultiplier = 1.0;
+if (moonFlickerActive) {
+    const flickerElapsed = Date.now() - moonFlickerStartTime;
+    if (flickerElapsed < MOON_FLICKER_DURATION) {
+        const flickerDecay = 1.0 - (flickerElapsed / MOON_FLICKER_DURATION);
+        const flickerSpeed = 30 - (flickerDecay * 20);
+        const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
+        moonFlickerMultiplier = 1.0 - (flicker * flickerDecay * 0.7);
+    } else {
+        moonFlickerActive = false;
+    }
+}
            
             // Update radial phase (slower cycle for seasons)
             sunRadialPhase += 0.0001 * SUN_SPEED;
@@ -2849,7 +2891,8 @@ function updateUnderworldLuminaryLink() {
             if (sunMesh && sunVisible) {
                 sunMesh.position.set(sunX, sunY, sunZ);
                 // Dim sun mesh based on brightness (normalize to 0-1 range, default 1.5)
-                const sunBrightnessFactor = Math.min(1, displayedSunBrightness / 1.5);
+                const flickeredSunBrightness = displayedSunBrightness * sunFlickerMultiplier;
+                const sunBrightnessFactor = Math.min(1, flickeredSunBrightness / 1.5);
                 if (displayedSunBrightness < 0.2) {
                     // Go black at very low brightness (0.1 = minimum slider = full black)
                     const blackFactor = (displayedSunBrightness - 0.1) / 0.1;
@@ -2865,7 +2908,7 @@ function updateUnderworldLuminaryLink() {
                 sunHalo.visible = displayedSunBrightness > 0.1;
                 sunHalo.material.opacity = sunBrightnessFactor * 0.3 * sunGlowFade;
                 sunLight.position.copy(sunMesh.position);
-                sunLight.intensity = displayedSunBrightness > 0.2 ? (realisticLighting ? displayedSunBrightness * 3 : displayedSunBrightness) : 0;
+                sunLight.intensity = displayedSunBrightness > 0.2 ? (realisticLighting ? flickeredSunBrightness * 3 : flickeredSunBrightness) : 0;
                 sunLight.distance = SUN_LIGHT_RADIUS;
             } else if (sunMesh) {
                 sunMesh.visible = false;
@@ -2930,7 +2973,8 @@ function updateUnderworldLuminaryLink() {
                 moonMesh.position.set(moonX, moonY, moonZ);
                 
                 // Combine brightness slider AND interference factor
-                const moonBrightnessFactor = Math.min(1, displayedMoonBrightness / 0.8);
+                const flickeredMoonBrightness = displayedMoonBrightness * moonFlickerMultiplier;
+const moonBrightnessFactor = Math.min(1, flickeredMoonBrightness / 0.8);
                 const combinedMoonFactor = moonBrightnessFactor * moonInterferenceFactor;
                 
                 // Surface goes dark when either brightness is low OR interference is high
@@ -2965,7 +3009,8 @@ function updateUnderworldLuminaryLink() {
                 moonHalo.material.opacity = moonHaloOpacity * 1.4 * combinedMoonFactor * moonGlowFade;
                
                 moonLight.position.copy(moonMesh.position);
-                moonLight.intensity = realisticLighting ? moonEffectiveBrightness * 8 * combinedMoonFactor : moonEffectiveBrightness * 4 * combinedMoonFactor;
+moonLight.intensity = realisticLighting ? moonEffectiveBrightness * moonFlickerMultiplier * 8 * combinedMoonFactor : moonEffectiveBrightness * moonFlickerMultiplier * 4 * combinedMoonFactor;
+                moonLight.color.setHex(0x0033ff);
                 moonLight.distance = MOON_LIGHT_RADIUS;
             } else if (moonMesh) {
                 moonMesh.visible = false;
@@ -3621,7 +3666,24 @@ document.getElementById('starfield-radius').addEventListener('input', (e) => {
         document.getElementById('sun-height').addEventListener('input', (e) => { SUN_HEIGHT = parseInt(e.target.value); document.getElementById('sun-height-value').textContent = SUN_HEIGHT + ' mi'; });
         document.getElementById('sun-radius-min').addEventListener('input', (e) => { SUN_RADIUS_MIN = parseInt(e.target.value); document.getElementById('sun-radius-min-value').textContent = SUN_RADIUS_MIN + ' mi'; });
         document.getElementById('sun-radius-max').addEventListener('input', (e) => { SUN_RADIUS_MAX = parseInt(e.target.value); document.getElementById('sun-radius-max-value').textContent = SUN_RADIUS_MAX + ' mi'; });
-        document.getElementById('sun-brightness').addEventListener('input', (e) => { SUN_BRIGHTNESS = parseFloat(e.target.value); document.getElementById('sun-brightness-value').textContent = SUN_BRIGHTNESS.toFixed(1); if (sunLight) sunLight.intensity = SUN_BRIGHTNESS; });
+document.getElementById('sun-brightness').addEventListener('input', (e) => {
+    const newBrightness = parseFloat(e.target.value);
+    
+    // Detect re-ignition: was off, now turning back on
+    if (sunWasOff && newBrightness >= SUN_OFF_THRESHOLD) {
+        sunFlickerActive = true;
+        sunFlickerStartTime = Date.now();
+        sunWasOff = false;
+    }
+    
+    // Track if sun is currently "off"
+    if (newBrightness < SUN_OFF_THRESHOLD) {
+        sunWasOff = true;
+    }
+    
+    SUN_BRIGHTNESS = newBrightness;
+    document.getElementById('sun-brightness-value').textContent = SUN_BRIGHTNESS.toFixed(1);
+});
         document.getElementById('sun-size').addEventListener('input', (e) => {
             SUN_SIZE = parseInt(e.target.value);
             document.getElementById('sun-size-value').textContent = SUN_SIZE + ' mi';
@@ -3635,7 +3697,24 @@ document.getElementById('starfield-radius').addEventListener('input', (e) => {
         document.getElementById('moon-height').addEventListener('input', (e) => { MOON_HEIGHT = parseInt(e.target.value); document.getElementById('moon-height-value').textContent = MOON_HEIGHT + ' mi'; });
         document.getElementById('moon-radius-min').addEventListener('input', (e) => { MOON_RADIUS_MIN = parseInt(e.target.value); document.getElementById('moon-radius-min-value').textContent = MOON_RADIUS_MIN + ' mi'; });
         document.getElementById('moon-radius-max').addEventListener('input', (e) => { MOON_RADIUS_MAX = parseInt(e.target.value); document.getElementById('moon-radius-max-value').textContent = MOON_RADIUS_MAX + ' mi'; });
-        document.getElementById('moon-brightness').addEventListener('input', (e) => { MOON_BRIGHTNESS = parseFloat(e.target.value); document.getElementById('moon-brightness-value').textContent = MOON_BRIGHTNESS.toFixed(1); if (moonLight) moonLight.intensity = MOON_BRIGHTNESS * 2; });
+document.getElementById('moon-brightness').addEventListener('input', (e) => {
+    const newBrightness = parseFloat(e.target.value);
+    
+    // Detect re-ignition: was off, now turning back on
+    if (moonWasOff && newBrightness >= MOON_OFF_THRESHOLD) {
+        moonFlickerActive = true;
+        moonFlickerStartTime = Date.now();
+        moonWasOff = false;
+    }
+    
+    // Track if moon is currently "off"
+    if (newBrightness < MOON_OFF_THRESHOLD) {
+        moonWasOff = true;
+    }
+    
+    MOON_BRIGHTNESS = newBrightness;
+    document.getElementById('moon-brightness-value').textContent = MOON_BRIGHTNESS.toFixed(1);
+});
         document.getElementById('moon-size').addEventListener('input', (e) => {
             MOON_SIZE = parseInt(e.target.value);
             document.getElementById('moon-size-value').textContent = MOON_SIZE + ' mi';
