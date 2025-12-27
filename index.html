@@ -802,33 +802,55 @@ let shellVisible = true, axesVisible = true, shellResonating = false, nebulaeVis
             starGeometry.setAttribute('glowSize', new THREE.BufferAttribute(glowSizes, 1));
            
             starfieldMaterial = new THREE.ShaderMaterial({
-                uniforms: {
-                    uTime: { value: 0.0 },
-                    uBrightness: { value: STAR_BRIGHTNESS },
-                    uTwinkleIntensity: { value: TWINKLE_INTENSITY },
-                    uPixelRatio: { value: renderer.getPixelRatio() },
-                    uGlowSize: { value: GLOW_SIZE },
-                    uCoreSharpness: { value: CORE_SHARPNESS },
-                    uGlowIntensity: { value: GLOW_INTENSITY }
-                },
-                vertexShader: `
-                    attribute float size; attribute float twinkleSeed; attribute float twinkleSpeed; attribute float glowSize;
-                    varying vec3 vColor; varying float vBrightness; varying float vGlowSize;
-                    uniform float uTime; uniform float uBrightness; uniform float uTwinkleIntensity; uniform float uPixelRatio; uniform float uGlowSize;
-                    void main() {
-                        vColor = color; vGlowSize = glowSize * uGlowSize;
-                        float twinkleMultiplier = 1.0;
-                        if (uTwinkleIntensity > 0.01) {
-                            float t1 = sin(uTime * 2.0 * twinkleSpeed + twinkleSeed * 6.28);
-                            float twinkle = t1 * uTwinkleIntensity * 0.5;
-                            twinkleMultiplier = 1.0 + twinkle;
-                        }
-                        vBrightness = uBrightness * twinkleMultiplier;
-                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                        gl_PointSize = size * glowSize * uGlowSize * uPixelRatio * (0.75 + uBrightness * 0.25) * twinkleMultiplier;
-                        gl_Position = projectionMatrix * mvPosition;
-                    }
-                `,
+uniforms: {
+    uTime: { value: 0.0 },
+    uBrightness: { value: STAR_BRIGHTNESS },
+    uTwinkleIntensity: { value: TWINKLE_INTENSITY },
+    uPixelRatio: { value: renderer.getPixelRatio() },
+    uGlowSize: { value: GLOW_SIZE },
+    uCoreSharpness: { value: CORE_SHARPNESS },
+    uGlowIntensity: { value: GLOW_INTENSITY },
+    uUpperFimbul: { value: 0.0 },
+    uLowerFimbul: { value: 0.0 }
+},
+vertexShader: `
+    attribute float size; attribute float twinkleSeed; attribute float twinkleSpeed; attribute float glowSize;
+    varying vec3 vColor; varying float vBrightness; varying float vGlowSize;
+    uniform float uTime; uniform float uBrightness; uniform float uTwinkleIntensity; uniform float uPixelRatio; uniform float uGlowSize;
+    uniform float uUpperFimbul; uniform float uLowerFimbul;
+    void main() {
+        vColor = color; vGlowSize = glowSize * uGlowSize;
+        float twinkleMultiplier = 1.0;
+        if (uTwinkleIntensity > 0.01) {
+            float t1 = sin(uTime * 2.0 * twinkleSpeed + twinkleSeed * 6.28);
+            float twinkle = t1 * uTwinkleIntensity * 0.5;
+            twinkleMultiplier = 1.0 + twinkle;
+        }
+        
+        // Hemisphere-based Fimbulwinter fade
+        float fimbulFade = 1.0;
+        vec4 worldPos = modelMatrix * vec4(position, 1.0);
+vec3 normPos = normalize(worldPos.xyz);
+        if (normPos.y > 0.0) {
+            // Upper hemisphere star - affected by upper Fimbulwinter
+            if (uUpperFimbul > 0.3) {
+                fimbulFade = 1.0 - ((uUpperFimbul - 0.3) / 0.6);
+                fimbulFade = max(0.0, fimbulFade);
+            }
+        } else {
+            // Lower hemisphere star - affected by lower Fimbulwinter
+            if (uLowerFimbul > 0.3) {
+                fimbulFade = 1.0 - ((uLowerFimbul - 0.3) / 0.6);
+                fimbulFade = max(0.0, fimbulFade);
+            }
+        }
+        
+        vBrightness = uBrightness * twinkleMultiplier * fimbulFade;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * glowSize * uGlowSize * uPixelRatio * (0.75 + uBrightness * 0.25) * twinkleMultiplier * fimbulFade;
+        gl_Position = projectionMatrix * mvPosition;
+    }
+`,
                 fragmentShader: `
                     varying vec3 vColor; varying float vBrightness; varying float vGlowSize;
                     uniform float uCoreSharpness; uniform float uGlowIntensity;
@@ -2091,9 +2113,9 @@ function updateLowerFimbulwinter() {
     const inLowerGroundView = isGroundView && (isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView);
     
 if (!inLowerGroundView) {
-    lowerFimbulwinterIntensity = 0;
-    lowerFimbulwinterActive = false;
+    // Disable camera-specific shiver, but let star fade intensity persist
     lowerFimbulShiverIntensity = 0;
+    // Don't reset intensity - let it persist for orbit view star fade
     return;
 }
     
@@ -4360,28 +4382,25 @@ const scaleFactor = Math.min(4000, Math.max(200, camDist * 0.1));
             updateUpperFimbulwinter();
             updateLowerFimbulwinter();
             
-            // Fade stars and nebulae during Fimbulwinter
-            if (starfieldMaterial) {
-                const fimbulIntensity = Math.max(displayedUpperFrost, displayedLowerFrost);
-                if (fimbulIntensity > 0.3) {
-                    const fadeFactor = 1 - ((fimbulIntensity - 0.3) / 0.6);
-                    starfieldMaterial.uniforms.uBrightness.value = STAR_BRIGHTNESS * fadeFactor;
-                    starfieldMaterial.uniforms.uTwinkleIntensity.value = TWINKLE_INTENSITY * fadeFactor;
-                    starfieldMaterial.uniforms.uGlowSize.value = GLOW_SIZE * fadeFactor;
-                    starfieldMaterial.uniforms.uGlowIntensity.value = GLOW_INTENSITY * fadeFactor;
-                    starfieldMaterial.uniforms.uCoreSharpness.value = CORE_SHARPNESS * fadeFactor;
-                    nebulae.forEach(n => { n.material.opacity = (0.15 + Math.random() * 0.15) * fadeFactor; });
-                    if (starfield) starfield.visible = fadeFactor > 0.01;
-                } else {
-                    starfieldMaterial.uniforms.uBrightness.value = STAR_BRIGHTNESS;
-                    starfieldMaterial.uniforms.uTwinkleIntensity.value = TWINKLE_INTENSITY;
-                    starfieldMaterial.uniforms.uGlowSize.value = GLOW_SIZE;
-                    starfieldMaterial.uniforms.uGlowIntensity.value = GLOW_INTENSITY;
-                    starfieldMaterial.uniforms.uCoreSharpness.value = CORE_SHARPNESS;
-                    nebulae.forEach(n => { n.material.opacity = 0.15 + Math.random() * 0.15; });
-                    if (starfield && starfieldVisible) starfield.visible = true;
-                }
-            }
+// Fade stars and nebulae during Fimbulwinter - INDEPENDENT HEMISPHERES
+if (starfieldMaterial) {
+    starfieldMaterial.uniforms.uUpperFimbul.value = displayedUpperFrost;
+    starfieldMaterial.uniforms.uLowerFimbul.value = displayedLowerFrost;
+    
+    // Nebulae fade based on whichever hemisphere they're in
+    nebulae.forEach(n => {
+        const isUpper = n.position.y > 0;
+        const frost = isUpper ? displayedUpperFrost : displayedLowerFrost;
+        if (frost > 0.3) {
+            const fadeFactor = 1 - ((frost - 0.3) / 0.6);
+            n.material.opacity = (0.15 + Math.random() * 0.15) * fadeFactor;
+            n.visible = fadeFactor > 0.01;
+        } else {
+            n.material.opacity = 0.15 + Math.random() * 0.15;
+            n.visible = nebulaeVisible;
+        }
+    });
+}
             
             updateFimbulwinterFrost();
             updateFrostShell(elapsedTime);
