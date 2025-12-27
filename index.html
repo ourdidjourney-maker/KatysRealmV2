@@ -3074,13 +3074,14 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
                 underworldMoonGlow.visible = combinedUMoonFactor > 0.02 && UMOON_BRIGHTNESS > 0.5;
                 underworldMoonGlow.material.opacity = combinedUMoonFactor * 0.6;
                 
-                underworldMoonHalo.position.copy(underworldMoonMesh.position);
-                underworldMoonHalo.visible = combinedUMoonFactor > 0.02 && UMOON_BRIGHTNESS > 0.5;
-                underworldMoonHalo.material.opacity = combinedUMoonFactor * 0.35;
-                
                 underworldMoonLight.position.copy(underworldMoonMesh.position);
                 underworldMoonLight.intensity = realisticLighting ? UMOON_BRIGHTNESS * 8 * combinedUMoonFactor : UMOON_BRIGHTNESS * 4 * combinedUMoonFactor;
                 underworldMoonLight.distance = UMOON_LIGHT_RADIUS;
+            } else if (underworldMoonMesh) {
+                underworldMoonMesh.visible = false;
+                underworldMoonGlow.visible = false;
+                underworldMoonHalo.visible = false;
+                underworldMoonLight.intensity = 0;
             }
                         // Update Underworld Sun/Moon coordinate displays
             // Update Underworld Sun position
@@ -3929,7 +3930,7 @@ resetAllViewStates();
                 isGroundView = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
-                document.getElementById('usun-view-button').textContent = 'Exit Underworld Sun';
+                document.getElementById('usun-view-button').textContent = 'Exit Underworld Sun View';
                 document.getElementById('usun-view-button').classList.add('active');
             } else {
                 exitToOrbit();
@@ -3952,7 +3953,7 @@ resetAllViewStates();
                 isGroundView = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
-                document.getElementById('umoon-view-button').textContent = 'Exit Underworld Moon';
+                document.getElementById('umoon-view-button').textContent = 'Exit Underworld Moon View';
                 document.getElementById('umoon-view-button').classList.add('active');
             } else {
                 exitToOrbit();
@@ -3987,7 +3988,7 @@ resetAllViewStates();
         document.getElementById('toggle-shell-button').addEventListener('click', () => { shellVisible = !shellVisible; shellWireframe.visible = shellVisible; document.getElementById('toggle-shell-button').textContent = shellVisible ? 'Hide Shell' : 'Show Shell'; });
         document.getElementById('toggle-sun-button').addEventListener('click', () => {
             sunVisible = !sunVisible;
-            document.getElementById('toggle-sun-button').textContent = sunVisible ? 'Hide Sun' : 'Show Upper Realm Sun';
+            document.getElementById('toggle-sun-button').textContent = sunVisible ? 'Hide Upper World Sun' : 'Show Upper Realm Sun';
         });
         document.getElementById('toggle-moon-button').addEventListener('click', () => {
             moonVisible = !moonVisible;
