@@ -3557,6 +3557,7 @@ document.getElementById('shell-radius').addEventListener('input', (e) => {
     createShellGrid();
     createShellGridLabels();
     createGridHoverSphere();
+    createMeteorClickSphere();
     activeMeteorSources.forEach(s => s.position.normalize().multiplyScalar(SHELL_RADIUS));
     // Restore visibility states
     shellWireframe.visible = shellVisible;
