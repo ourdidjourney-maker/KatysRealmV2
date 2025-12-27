@@ -229,8 +229,10 @@
         <button id="toggle-luminary-link-button">Upper Realm Luminary Distance</button>
         <button id="sun-view-button">Upper Realm Sun View</button>
         <button id="moon-view-button">Upper Realm Moon View</button>
+        <button id="toggle-interference-button">Upper Moon Phases</button>
         <button id="usun-view-button">Underworld Sun View</button>
         <button id="umoon-view-button">Underworld Moon View</button>
+        <button id="toggle-umoon-interference-button">Underworld Moon Phases</button>
         <button id="toggle-underworld-link-button">Underworld Luminary Distance</button>
         <button id="underworld-view-button">Underworld Ground View</button>
         <button id="underworld-edge-view-button">Underworld Edge View</button>
@@ -249,8 +251,6 @@
         <button id="toggle-underworld-moon-button">Hide Underworld Moon</button>
         <button id="toggle-axes-button">Hide Axes</button>
         <button id="toggle-nebula-button">Hide Nebulae</button>
-        <button id="toggle-interference-button">Moon Phases</button>
-        <button id="toggle-umoon-interference-button">Underworld Moon Phases</button>
         <button id="toggle-realistic-lighting-button">Realistic Lighting</button>
         <button id="toggle-lens-flare-button">Lens Flare</button>
         <button id="toggle-ripple-button">Gulf Ripple</button>
@@ -4014,7 +4014,7 @@ document.getElementById('toggle-underworld-link-button').addEventListener('click
 });
         document.getElementById('toggle-interference-button').addEventListener('click', () => {
             moonInterferenceEnabled = !moonInterferenceEnabled;
-            document.getElementById('toggle-interference-button').textContent = moonInterferenceEnabled ? 'Moon Phases ON' : 'Moon Phase OFF';
+            document.getElementById('toggle-interference-button').textContent = moonInterferenceEnabled ? 'Upper Moon Phases ON' : 'Upper Moon Phase OFF';
             document.getElementById('toggle-interference-button').classList.toggle('active', moonInterferenceEnabled);
         });
         document.getElementById('toggle-umoon-interference-button').addEventListener('click', () => {
