@@ -2927,6 +2927,19 @@ sunHalo.visible = SUN_BRIGHTNESS > 0.5;
             }
             
             if (moonMesh && moonVisible) {
+                const moonShellPoint = moonMesh.position.clone().normalize().multiplyScalar(SHELL_RADIUS);
+                const moonShellCoords = getShellCoordinates(moonShellPoint);
+                document.getElementById('moon-shell-coords').textContent = 
+                    `${moonShellCoords.quadrant} X:${moonShellCoords.x.toLocaleString()} Y:${moonShellCoords.y.toLocaleString()} ${moonShellCoords.zSymbol}:${moonShellCoords.z.toLocaleString()}`;
+                const moonStrataCoords = getStrataCoordinates(moonMesh.position);
+                document.getElementById('moon-strata-coords').textContent = 
+                    `${moonStrataCoords.quadrant} X:${moonStrataCoords.x.toLocaleString()} Y:${moonStrataCoords.y.toLocaleString()} Dist:${moonStrataCoords.distFromCenter.toLocaleString()}`;
+            } else {
+                document.getElementById('moon-shell-coords').textContent = '--';
+                document.getElementById('moon-strata-coords').textContent = '--';
+            }
+            
+            if (moonMesh && moonVisible) {
                 moonMesh.position.set(moonX, moonY, moonZ);
                 
                 // Combine brightness slider AND interference factor
@@ -3106,11 +3119,21 @@ underworldSunGlow.visible = USUN_BRIGHTNESS > 0.5;
                 underworldSunLight.position.copy(underworldSunMesh.position);
                 underworldSunLight.intensity = realisticLighting ? USUN_BRIGHTNESS * 3 : USUN_BRIGHTNESS;
                 underworldSunLight.distance = USUN_LIGHT_RADIUS;
+                
+                const uSunShellPoint = underworldSunMesh.position.clone().normalize().multiplyScalar(SHELL_RADIUS);
+                const uSunShellCoords = getShellCoordinates(uSunShellPoint);
+                document.getElementById('usun-shell-coords').textContent = 
+                    `${uSunShellCoords.quadrant} X:${uSunShellCoords.x.toLocaleString()} Y:${uSunShellCoords.y.toLocaleString()} ${uSunShellCoords.zSymbol}:${uSunShellCoords.z.toLocaleString()}`;
+                const uSunStrataCoords = getStrataCoordinates(underworldSunMesh.position);
+                document.getElementById('usun-strata-coords').textContent = 
+                    `${uSunStrataCoords.quadrant} X:${uSunStrataCoords.x.toLocaleString()} Y:${uSunStrataCoords.y.toLocaleString()} Dist:${uSunStrataCoords.distFromCenter.toLocaleString()}`;
             } else if (underworldSunMesh) {
                 underworldSunMesh.visible = false;
                 underworldSunGlow.visible = false;
                 underworldSunHalo.visible = false;
                 underworldSunLight.intensity = 0;
+                document.getElementById('usun-shell-coords').textContent = '--';
+                document.getElementById('usun-strata-coords').textContent = '--';
             }
             
             if (underworldMoonMesh && underworldMoonVisible) {
