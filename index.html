@@ -232,7 +232,7 @@
         <button id="usun-view-button">Underworld Sun View</button>
         <button id="umoon-view-button">Underworld Moon View</button>
         <button id="toggle-underworld-link-button">Underworld Luminary Distance</button>
-        <button id="underworld-view-button">Underworld Midplane View</button>
+        <button id="underworld-view-button">Underworld Ground View</button>
         <button id="underworld-edge-view-button">Underworld Edge View</button>
         <button id="underworld-mid-view-button">Underworld Mid Plane View</button>        
         <button id="toggle-resonance-button">Shell Resonance</button>
@@ -3674,8 +3674,8 @@ function resetAllViewStates() {
     
     // Reset all button text to defaults
     document.getElementById('ground-view-button').textContent = 'Upper World Ground View';
-    document.getElementById('underworld-view-button').textContent = 'Underworld View';
-    document.getElementById('edge-view-button').textContent = 'Upper realm Midplane Edge View';
+    document.getElementById('underworld-view-button').textContent = 'Underworld Ground View';
+    document.getElementById('edge-view-button').textContent = 'Upper realm Edge View';
     document.getElementById('mid-view-button').textContent = 'Upper Realm Midplane View';
     document.getElementById('underworld-edge-view-button').textContent = 'Underworld Edge View';
     document.getElementById('underworld-mid-view-button').textContent = 'Underworld Midplane View';
@@ -3709,7 +3709,7 @@ function exitToOrbit() {
                 isGroundView = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
-                document.getElementById('ground-view-button').textContent = 'Exit Ground';
+                document.getElementById('ground-view-button').textContent = 'Exit Upper Realm Ground View';
                 document.getElementById('ground-view-button').classList.add('active');
             } else if (!isCurrentlyGroundCenter) {
                 previousGroundPosition = getCurrentViewPosition();
@@ -3719,7 +3719,7 @@ function exitToOrbit() {
                 isGroundToGroundTransition = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
-                document.getElementById('ground-view-button').textContent = 'Exit Ground';
+                document.getElementById('ground-view-button').textContent = 'Exit Upper Ground View';
                 document.getElementById('ground-view-button').classList.add('active');
             } else {
                 exitToOrbit();
@@ -3738,7 +3738,7 @@ function exitToOrbit() {
                 isGroundView = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
-                document.getElementById('underworld-view-button').textContent = 'Exit Underworld';
+                document.getElementById('underworld-view-button').textContent = 'Exit Ground Underworld';
                 document.getElementById('underworld-view-button').classList.add('active');
             } else if (!isCurrentlyUnderworldCenter) {
                 previousGroundPosition = getCurrentViewPosition();
@@ -3748,7 +3748,7 @@ function exitToOrbit() {
                 isGroundToGroundTransition = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
-                document.getElementById('underworld-view-button').textContent = 'Exit Underworld';
+                document.getElementById('underworld-view-button').textContent = 'Exit Underworld Ground View';
                 document.getElementById('underworld-view-button').classList.add('active');
             } else {
                 exitToOrbit();
@@ -3770,7 +3770,7 @@ function exitToOrbit() {
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
                 startUpperEdgeCold();
-                document.getElementById('edge-view-button').textContent = 'Exit Edge';
+                document.getElementById('edge-view-button').textContent = 'Exit Upper Plane Edge View';
                 document.getElementById('edge-view-button').classList.add('active');
             } else if (!isCurrentlyEdge) {
                 previousGroundPosition = getCurrentViewPosition();
@@ -3785,7 +3785,7 @@ function exitToOrbit() {
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
                 startUpperEdgeCold();
-                document.getElementById('edge-view-button').textContent = 'Exit Edge';
+                document.getElementById('edge-view-button').textContent = 'Exit Upper Plane Edge View';
                 document.getElementById('edge-view-button').classList.add('active');
             } else {
                 exitToOrbit();
@@ -3806,7 +3806,7 @@ function exitToOrbit() {
                 isGroundView = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
-                document.getElementById('mid-view-button').textContent = 'Exit Mid';
+                document.getElementById('mid-view-button').textContent = 'Exit Upper Realm Mid Plane View';
                 document.getElementById('mid-view-button').classList.add('active');
             } else if (!isCurrentlyMid) {
                 previousGroundPosition = getCurrentViewPosition();
@@ -3820,7 +3820,7 @@ function exitToOrbit() {
                 isGroundToGroundTransition = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
-                document.getElementById('mid-view-button').textContent = 'Exit Mid';
+                document.getElementById('mid-view-button').textContent = 'Exit Upper Mid Plane View';
                 document.getElementById('mid-view-button').classList.add('active');
             } else {
                 exitToOrbit();
@@ -3907,7 +3907,7 @@ resetAllViewStates();
                 isGroundView = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
-                document.getElementById('sun-view-button').textContent = 'Exit Sun';
+                document.getElementById('sun-view-button').textContent = 'Exit Upper Sun View';
                 document.getElementById('sun-view-button').classList.add('active');
             } else {
                 exitToOrbit();
@@ -3978,7 +3978,7 @@ resetAllViewStates();
                 isGroundView = true;
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
-                document.getElementById('moon-view-button').textContent = 'Exit Moon';
+                document.getElementById('moon-view-button').textContent = 'Exit Upper Realm Moon View';
                 document.getElementById('moon-view-button').classList.add('active');
             } else {
                 exitToOrbit();
