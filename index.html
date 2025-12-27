@@ -3091,6 +3091,10 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
                 underworldMoonGlow.visible = combinedUMoonFactor > 0.02 && UMOON_BRIGHTNESS > 0.5;
                 underworldMoonGlow.material.opacity = combinedUMoonFactor * 0.6;
                 
+                underworldMoonHalo.position.copy(underworldMoonMesh.position);
+                underworldMoonHalo.visible = combinedUMoonFactor > 0.02 && UMOON_BRIGHTNESS > 0.5;
+                underworldMoonHalo.material.opacity = combinedUMoonFactor * 0.5;
+                
                 underworldMoonLight.position.copy(underworldMoonMesh.position);
                 underworldMoonLight.intensity = realisticLighting ? UMOON_BRIGHTNESS * 8 * combinedUMoonFactor : UMOON_BRIGHTNESS * 4 * combinedUMoonFactor;
                 underworldMoonLight.distance = UMOON_LIGHT_RADIUS;
