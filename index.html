@@ -12,7 +12,7 @@
         #hide-ui-button:hover { background: rgba(20, 20, 20, 0.8); color: #ccc; }
         .ui-hidden #hide-ui-button { background: rgba(0, 0, 0, 0.4); }
         .overlay-panel { transition: opacity 0.4s ease, transform 0.4s ease; }
-        .ui-hidden .overlay-panel { opacity: 0; pointer-events: none; transform: translateY(10px); }
+.ui-hidden .overlay-panel, .ui-hidden #fps-counter { opacity: 0; pointer-events: none; transform: translateY(10px); }
 #info-panel { position: absolute; top: 50%; left: 15px; transform: translateY(-50%); background: rgba(0, 0, 0, 0.75); padding: 12px; border-radius: 10px; border: 1px solid rgba(60, 60, 60, 0.4); max-width: 260px; max-height: 85vh; overflow-y: auto; backdrop-filter: blur(10px); scrollbar-width: none; -ms-overflow-style: none; }
 #info-panel::-webkit-scrollbar { display: none; }
 #info-panel h1 { font-size: 15px; margin-bottom: 8px; color: #64b5f6; }
@@ -55,10 +55,12 @@
         #axis-drag-indicator.visible, #meteor-indicator.visible { opacity: 1; }
         #meteor-count-display { position: absolute; top: 55px; right: 15px; background: rgba(255, 152, 0, 0.8); color: #000; padding: 3px 8px; border-radius: 10px; font-size: 9px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 100; }
         #meteor-count-display.visible { opacity: 1; }
+#fps-counter { position: fixed; top: 5px; left: 50%; transform: translateX(-50%); color: #333; font-size: 10px; font-family: monospace; pointer-events: none; z-index: 9999; opacity: 0.6; }
     </style>
 </head>
 <body>
     <div id="canvas-container"></div>
+    <div id="fps-counter">-- FPS</div>
     <div id="axis-drag-indicator">Drag to rotate stars</div>
     <div id="meteor-indicator">Click shell to start/stop shower</div>
     <div id="meteor-count-display">Active: <span id="shower-count">0</span></div>
@@ -4252,6 +4254,7 @@ if (isSunView || isMoonView) {
         function animate() {
             requestAnimationFrame(animate);
             const elapsedTime = (Date.now() - startTime) * 0.001;
+            if (!window.fpsFrames) { window.fpsFrames = 0; window.fpsTime = Date.now(); } window.fpsFrames++; if (Date.now() - window.fpsTime >= 1000) { document.getElementById('fps-counter').textContent = window.fpsFrames + ' FPS'; window.fpsFrames = 0; window.fpsTime = Date.now(); }
             if (starfieldMaterial) starfieldMaterial.uniforms.uTime.value = elapsedTime;
             updateMeteorSystem();
             updateGulfRipple(elapsedTime);
