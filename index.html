@@ -223,29 +223,29 @@
 <div class="control-group"><label>Underworld Moon Outer Orbit: <span class="value-display" id="umoon-radius-max-value">3107 mi</span></label><input type="range" id="umoon-radius-max" min="100" max="20000" value="3107" step="50"></div>
 <div class="control-group"><label>Underworld Moon Light Radius: <span class="value-display" id="umoon-light-radius-value">6000 mi</span></label><input type="range" id="umoon-light-radius" min="500" max="50000" value="6000" step="500"></div>
 <div class="control-group"><label>Underworld Moon Interference: <span class="value-display" id="umoon-interference-value">0.12</span></label><input type="range" id="umoon-interference" min="0.05" max="1.0" value="0.12" step="0.01"></div>
-        <button id="ground-view-button">Ground View</button>
-        <button id="edge-view-button">Edge View</button>
-        <button id="mid-view-button">Mid View</button>
+        <button id="ground-view-button">Upper Realm Ground View</button>
+        <button id="edge-view-button">Upper Realm Edge Plane View</button>
+        <button id="mid-view-button">Upper Realm Mid Plane View</button>
+        <button id="toggle-starfield-button">Hide Starfield</button>
         <button id="sun-view-button">Sun View</button>
-<button id="moon-view-button">Moon View</button>
-        <button id="underworld-view-button">Underworld Mid View</button>
+        <button id="moon-view-button">Moon View</button>
         <button id="usun-view-button">Underworld Sun</button>
-<button id="umoon-view-button">Underworld Moon</button>
+        <button id="umoon-view-button">Underworld Moon</button>
+        <button id="underworld-view-button">Underworld Mid View</button>
         <button id="underworld-edge-view-button">Underworld Edge View</button>
-<button id="underworld-mid-view-button">Underworld Mid View</button>        
-        <button id="toggle-shell-button">Hide Shell</button>
+<button id="underworld-mid-view-button">Underworld Mid Plane View</button>        
         <button id="toggle-resonance-button">Shell Resonance</button>
-        <button id="toggle-strata-wire-button">Strata Wireframe</button>
-        <button id="toggle-axes-button">Hide Axes</button>
-        <button id="toggle-horizon-button">Hide Gulf</button>
-        <button id="toggle-ripple-button">Gulf Ripple</button>
-        <button id="toggle-nebula-button">Hide Nebulae</button>
         <button id="shooting-stars-button">Shooting Stars</button>
         <button id="meteor-mode-button">Leonid Shower</button>
+        <button id="toggle-strata-wire-button">Strata Wireframe</button>
+        <button id="toggle-shell-button">Hide Shell</button>
+        <button id="toggle-horizon-button">Hide Gulf</button>
+                <button id="toggle-sun-button">Hide Upper Realm Sun</button>
+        <button id="toggle-moon-button">Hide Upper Realm Moon</button>
+        <button id="toggle-axes-button">Hide Axes</button>
+        <button id="toggle-nebula-button">Hide Nebulae</button>
+        <button id="toggle-ripple-button">Gulf Ripple</button>
         <button id="stop-meteors-button">Clear Leonids</button>
-        <button id="toggle-starfield-button">Hide Starfield</button>
-        <button id="toggle-sun-button">Hide Sun</button>
-        <button id="toggle-moon-button">Hide Moon</button>
         <button id="toggle-underworld-sun-button">Hide Underworld Sun</button>
 <button id="toggle-underworld-moon-button">Hide Underworld Moon</button>
         <button id="toggle-interference-button">Moon Phases</button>
@@ -2966,6 +2966,11 @@ moonHalo.visible = combinedMoonFactor > 0.02 && MOON_BRIGHTNESS > 0.5;
                 moonLight.position.copy(moonMesh.position);
                 moonLight.intensity = realisticLighting ? moonEffectiveBrightness * 8 * combinedMoonFactor : moonEffectiveBrightness * 4 * combinedMoonFactor;
                 moonLight.distance = MOON_LIGHT_RADIUS;
+            } else if (moonMesh) {
+                moonMesh.visible = false;
+                moonGlow.visible = false;
+                moonHalo.visible = false;
+                moonLight.intensity = 0;
             }          // ============ UNDERWORLD LUMINARIES UPDATE ============
             // Mirror physics of upper luminaries, positioned BELOW the disk
             
