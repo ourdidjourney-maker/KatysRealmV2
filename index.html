@@ -2167,9 +2167,9 @@ function updateFimbulwinterFrost() {
     // It covers the entire screen, not just edges
     const cornerRadius = Math.min(w, h) * 1.5 * intensity;
     
-    // Color tint - upper is white-blue, underworld is deeper blue-purple
-    const frostColor = inUnderworldView ? 'rgba(80, 100, 180,' : 'rgba(200, 220, 255,';
-    const iceColor = inUnderworldView ? 'rgba(50, 70, 160,' : 'rgba(170, 200, 240,';
+// Color tint - dark frost (no light = dark ice)
+const frostColor = inUnderworldView ? 'rgba(20, 25, 45,' : 'rgba(30, 35, 50,';
+const iceColor = inUnderworldView ? 'rgba(15, 20, 40,' : 'rgba(25, 30, 45,';
     
     // Corner frost gradients - larger and more intense than edge frost
     let gradient;
