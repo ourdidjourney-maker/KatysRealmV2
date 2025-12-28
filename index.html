@@ -347,8 +347,9 @@ let lightningCanvas, lightningCtx;
 let lightningGroup;
 let activeLightningBolts = [];
 const LIGHTNING_SPAWN_RATE = 70; // Bolts per second at peak
-const LIGHTNING_BOLT_LIFETIME = 150; // ms per bolt
+const LIGHTNING_BOLT_LIFETIME = 130; // ms per bolt
 const LIGHTNING_BRANCH_CHANCE = 0.5;
+const SHELL_LIGHTNING_SPAWN_RATE = 500;
 const SUN_FLICKER_DURATION = 2500; // 2.5 seconds of flickering
 const SUN_OFF_THRESHOLD = 0.5; // Below this = "off"
 // Moon flicker system (re-ignition effect)
@@ -722,16 +723,25 @@ let lensFlareEnabled = true;
        
         function stopAllMeteors() { activeMeteorSources = []; allMeteors = []; }
        
-        function createMeteorClickSphere() {
-            if (meteorClickSphere) scene.remove(meteorClickSphere);
+function createMeteorClickSphere() {
+    if (meteorClickSphere) {
+        meteorClickSphere.geometry.dispose();
+        meteorClickSphere.material.dispose();
+        scene.remove(meteorClickSphere);
+    }
             const geometry = new THREE.SphereGeometry(SHELL_RADIUS, 64, 64);
             const material = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
             meteorClickSphere = new THREE.Mesh(geometry, material);
             scene.add(meteorClickSphere);
         }
        
-        function createStarfield() {
-            if (starfield) starAxisPivot.remove(starfield);
+function createStarfield() {
+    // DISPOSE old starfield to prevent memory leaks
+    if (starfield) {
+        starfield.geometry.dispose();
+        starfield.material.dispose();
+        starAxisPivot.remove(starfield);
+    }
             const totalStars = MAIN_STAR_COUNT + TINY_STAR_COUNT;
             const positions = new Float32Array(totalStars * 3);
             const colors = new Float32Array(totalStars * 3);
@@ -854,16 +864,40 @@ let lensFlareEnabled = true;
             starAxisPivot.add(starfield);
         }
        
-        function createSunAndMoon() {
-            // Remove existing if any
-            if (sunMesh) scene.remove(sunMesh);
-            if (moonMesh) scene.remove(moonMesh);
-            if (sunLight) scene.remove(sunLight);
-            if (moonLight) scene.remove(moonLight);
-            if (sunGlow) scene.remove(sunGlow);
-            if (moonGlow) scene.remove(moonGlow);
-            if (sunHalo) scene.remove(sunHalo);
-            if (moonHalo) scene.remove(moonHalo);
+function createSunAndMoon() {
+    // DISPOSE old upper world luminaries to prevent memory leaks
+    if (sunMesh) {
+        sunMesh.geometry.dispose();
+        sunMesh.material.dispose();
+        scene.remove(sunMesh);
+    }
+    if (moonMesh) {
+        moonMesh.geometry.dispose();
+        moonMesh.material.dispose();
+        scene.remove(moonMesh);
+    }
+    if (sunGlow) {
+        sunGlow.material.map.dispose();
+        sunGlow.material.dispose();
+        scene.remove(sunGlow);
+    }
+    if (moonGlow) {
+        moonGlow.material.map.dispose();
+        moonGlow.material.dispose();
+        scene.remove(moonGlow);
+    }
+    if (sunHalo) {
+        sunHalo.material.map.dispose();
+        sunHalo.material.dispose();
+        scene.remove(sunHalo);
+    }
+    if (moonHalo) {
+        moonHalo.material.map.dispose();
+        moonHalo.material.dispose();
+        scene.remove(moonHalo);
+    }
+    if (sunLight) scene.remove(sunLight);
+    if (moonLight) scene.remove(moonLight);
            
             // Create Sun
             const sunGeometry = new THREE.SphereGeometry(SUN_SIZE, 32, 32);
@@ -942,16 +976,40 @@ let lensFlareEnabled = true;
             moonLight.castShadow = true;
             scene.add(moonLight);
                         // ============ UNDERWORLD LUMINARIES ============
-           
-            // Remove existing underworld luminaries if any
-            if (underworldSunMesh) scene.remove(underworldSunMesh);
-            if (underworldMoonMesh) scene.remove(underworldMoonMesh);
-            if (underworldSunLight) scene.remove(underworldSunLight);
-            if (underworldMoonLight) scene.remove(underworldMoonLight);
-            if (underworldSunGlow) scene.remove(underworldSunGlow);
-            if (underworldMoonGlow) scene.remove(underworldMoonGlow);
-            if (underworldSunHalo) scene.remove(underworldSunHalo);
-            if (underworldMoonHalo) scene.remove(underworldMoonHalo);
+
+// DISPOSE old underworld luminaries to prevent memory leaks
+if (underworldSunMesh) {
+    underworldSunMesh.geometry.dispose();
+    underworldSunMesh.material.dispose();
+    scene.remove(underworldSunMesh);
+}
+if (underworldMoonMesh) {
+    underworldMoonMesh.geometry.dispose();
+    underworldMoonMesh.material.dispose();
+    scene.remove(underworldMoonMesh);
+}
+if (underworldSunGlow) {
+    underworldSunGlow.material.map.dispose();
+    underworldSunGlow.material.dispose();
+    scene.remove(underworldSunGlow);
+}
+if (underworldMoonGlow) {
+    underworldMoonGlow.material.map.dispose();
+    underworldMoonGlow.material.dispose();
+    scene.remove(underworldMoonGlow);
+}
+if (underworldSunHalo) {
+    underworldSunHalo.material.map.dispose();
+    underworldSunHalo.material.dispose();
+    scene.remove(underworldSunHalo);
+}
+if (underworldMoonHalo) {
+    underworldMoonHalo.material.map.dispose();
+    underworldMoonHalo.material.dispose();
+    scene.remove(underworldMoonHalo);
+}
+if (underworldSunLight) scene.remove(underworldSunLight);
+if (underworldMoonLight) scene.remove(underworldMoonLight);
            
             // Create Underworld Sun - BLOOD RED
             const uSunGeometry = new THREE.SphereGeometry(USUN_SIZE, 32, 32);
@@ -1215,11 +1273,23 @@ function updateFrostShell(elapsedTime) {
 }
        
         // Kayleigh's Dual-Zenith Shell Coordinate System
-    function createShellGrid() {
-    // Clean up existing grid
-    if (upperZenithMarker) scene.remove(upperZenithMarker);
-    if (lowerZenithMarker) scene.remove(lowerZenithMarker);
-    shellGridLines.forEach(line => scene.remove(line));
+function createShellGrid() {
+    // DISPOSE old grid to prevent memory leaks
+    if (upperZenithMarker) {
+        upperZenithMarker.geometry.dispose();
+        upperZenithMarker.material.dispose();
+        scene.remove(upperZenithMarker);
+    }
+    if (lowerZenithMarker) {
+        lowerZenithMarker.geometry.dispose();
+        lowerZenithMarker.material.dispose();
+        scene.remove(lowerZenithMarker);
+    }
+    shellGridLines.forEach(line => {
+        line.geometry.dispose();
+        line.material.dispose();
+        scene.remove(line);
+    });
     shellGridLines = [];
    
     // Create Upper Zenith marker (top of shell) - GOLD
@@ -1360,12 +1430,28 @@ function updateFrostShell(elapsedTime) {
     return sprite;
 }
 
-    function createShellGridLabels() {
-    // Clean up existing labels
-    if (upperZenithLabel) scene.remove(upperZenithLabel);
-    if (lowerZenithLabel) scene.remove(lowerZenithLabel);
-    if (equatorLabel) scene.remove(equatorLabel);
-    shellGridLabels.forEach(label => scene.remove(label));
+function createShellGridLabels() {
+    // DISPOSE old labels to prevent memory leaks
+    if (upperZenithLabel) {
+        upperZenithLabel.material.map.dispose();
+        upperZenithLabel.material.dispose();
+        scene.remove(upperZenithLabel);
+    }
+    if (lowerZenithLabel) {
+        lowerZenithLabel.material.map.dispose();
+        lowerZenithLabel.material.dispose();
+        scene.remove(lowerZenithLabel);
+    }
+    if (equatorLabel) {
+        equatorLabel.material.map.dispose();
+        equatorLabel.material.dispose();
+        scene.remove(equatorLabel);
+    }
+    shellGridLabels.forEach(label => {
+        label.material.map.dispose();
+        label.material.dispose();
+        scene.remove(label);
+    });
     shellGridLabels = [];
    
     // Upper Zenith Label
@@ -1447,11 +1533,23 @@ function updateFrostShell(elapsedTime) {
     shellGridLabels.forEach(label => label.visible = shellGridVisible);
 }
 
-    function createStrataGrid() {
-    // Clean up existing
-    if (upperStrataOrigin) scene.remove(upperStrataOrigin);
-    if (lowerStrataOrigin) scene.remove(lowerStrataOrigin);
-    strataGridLines.forEach(line => scene.remove(line));
+function createStrataGrid() {
+    // DISPOSE old strata grid to prevent memory leaks
+    if (upperStrataOrigin) {
+        upperStrataOrigin.geometry.dispose();
+        upperStrataOrigin.material.dispose();
+        scene.remove(upperStrataOrigin);
+    }
+    if (lowerStrataOrigin) {
+        lowerStrataOrigin.geometry.dispose();
+        lowerStrataOrigin.material.dispose();
+        scene.remove(lowerStrataOrigin);
+    }
+    strataGridLines.forEach(line => {
+        line.geometry.dispose();
+        line.material.dispose();
+        scene.remove(line);
+    });
     strataGridLines = [];
    
     const halfThickness = DISK_THICKNESS / 2;
@@ -1611,12 +1709,28 @@ function updateFrostShell(elapsedTime) {
     }
 }
 
-    function createStrataGridLabels() {
-    // Clean up existing labels
-    if (upperStrataLabel) scene.remove(upperStrataLabel);
-    if (lowerStrataLabel) scene.remove(lowerStrataLabel);
-    if (strataMidplaneLabel) scene.remove(strataMidplaneLabel);
-    strataGridLabels.forEach(label => scene.remove(label));
+function createStrataGridLabels() {
+    // DISPOSE old strata labels to prevent memory leaks
+    if (upperStrataLabel) {
+        upperStrataLabel.material.map.dispose();
+        upperStrataLabel.material.dispose();
+        scene.remove(upperStrataLabel);
+    }
+    if (lowerStrataLabel) {
+        lowerStrataLabel.material.map.dispose();
+        lowerStrataLabel.material.dispose();
+        scene.remove(lowerStrataLabel);
+    }
+    if (strataMidplaneLabel) {
+        strataMidplaneLabel.material.map.dispose();
+        strataMidplaneLabel.material.dispose();
+        scene.remove(strataMidplaneLabel);
+    }
+    strataGridLabels.forEach(label => {
+        label.material.map.dispose();
+        label.material.dispose();
+        scene.remove(label);
+    });
     strataGridLabels = [];
    
     const halfThickness = DISK_THICKNESS / 2;
@@ -1694,8 +1808,12 @@ function updateFrostShell(elapsedTime) {
     strataGridLabels.forEach(label => label.visible = strataGridVisible);
 }
 
-    function createGridHoverSphere() {
-    if (shellHoverSphere) scene.remove(shellHoverSphere);
+function createGridHoverSphere() {
+    if (shellHoverSphere) {
+        shellHoverSphere.geometry.dispose();
+        shellHoverSphere.material.dispose();
+        scene.remove(shellHoverSphere);
+    }
     const geometry = new THREE.SphereGeometry(SHELL_RADIUS, 64, 64);
     const material = new THREE.MeshBasicMaterial({
         visible: false,
@@ -1705,8 +1823,12 @@ function updateFrostShell(elapsedTime) {
     scene.add(shellHoverSphere);
 }
 
-    function createStrataHoverMesh() {
-    if (strataHoverMesh) scene.remove(strataHoverMesh);
+function createStrataHoverMesh() {
+    if (strataHoverMesh) {
+        strataHoverMesh.geometry.dispose();
+        strataHoverMesh.material.dispose();
+        scene.remove(strataHoverMesh);
+    }
     const geometry = new THREE.CylinderGeometry(DISK_RADIUS, DISK_RADIUS, DISK_THICKNESS, 64, 1);
     const material = new THREE.MeshBasicMaterial({
         visible: false,
@@ -1863,7 +1985,18 @@ function updateFrostShell(elapsedTime) {
     }
 }
         // Luminary Link System
-    function createLuminaryLink() {
+function createLuminaryLink() {
+    // DISPOSE old luminary link to prevent memory leaks
+    if (luminaryLine) {
+        luminaryLine.geometry.dispose();
+        luminaryLine.material.dispose();
+        scene.remove(luminaryLine);
+    }
+    if (luminaryDistanceSprite) {
+        luminaryDistanceSprite.material.map.dispose();
+        luminaryDistanceSprite.material.dispose();
+        scene.remove(luminaryDistanceSprite);
+    }
     const lineGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(6);
     const colors = new Float32Array(6);
@@ -1884,7 +2017,18 @@ function updateFrostShell(elapsedTime) {
     luminaryDistanceSprite.userData = { canvas, texture };
     scene.add(luminaryDistanceSprite);
 }
-    function createUnderworldLuminaryLink() {
+function createUnderworldLuminaryLink() {
+    // DISPOSE old underworld luminary link to prevent memory leaks
+    if (underworldLuminaryLine) {
+        underworldLuminaryLine.geometry.dispose();
+        underworldLuminaryLine.material.dispose();
+        scene.remove(underworldLuminaryLine);
+    }
+    if (underworldLuminaryDistanceSprite) {
+        underworldLuminaryDistanceSprite.material.map.dispose();
+        underworldLuminaryDistanceSprite.material.dispose();
+        scene.remove(underworldLuminaryDistanceSprite);
+    }
     const lineGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(6);
     const colors = new Float32Array(6);
@@ -2620,8 +2764,11 @@ function generateLightningPath3D(startPos, endPos, displacement, depth) {
         // Sharp random offset perpendicular to main direction
         const offsetMagnitude = displacement * (1 - t * 0.5) * (Math.random() * 0.8 + 0.2);
         
-        // Create perpendicular vectors
-        const up = new THREE.Vector3(0, 1, 0);
+        // Create perpendicular vectors (avoid NaN when parallel to Y)
+        let up = new THREE.Vector3(0, 1, 0);
+        if (Math.abs(mainDir.dot(up)) > 0.99) {
+            up = new THREE.Vector3(1, 0, 0);
+        }
         const perp1 = new THREE.Vector3().crossVectors(mainDir, up).normalize();
         const perp2 = new THREE.Vector3().crossVectors(mainDir, perp1).normalize();
         
@@ -2802,6 +2949,13 @@ function updateLightning() {
         if (Math.random() < spawnChance) spawnLightningBolt3D(underworldMoonMesh, false, 'umoon');
     }
     
+    // Shell lightning during ANY re-ignition
+    const anyFlickerActive = sunFlickerActive || moonFlickerActive || uSunFlickerActive || uMoonFlickerActive;
+    if (anyFlickerActive) {
+        const shellSpawnChance = SHELL_LIGHTNING_SPAWN_RATE / 60;
+        if (Math.random() < shellSpawnChance) spawnShellLightningBolt();
+    }
+    
     // Update and remove expired bolts
     for (let i = activeLightningBolts.length - 1; i >= 0; i--) {
         const bolt = activeLightningBolts[i];
@@ -2832,6 +2986,115 @@ function updateLightning() {
     }
 }
 
+function spawnShellLightningBolt() {
+    // Pick first random point on shell
+    const theta1 = Math.random() * Math.PI * 2;
+    const phi1 = Math.acos(2 * Math.random() - 1);
+    const startPos = new THREE.Vector3(
+        SHELL_RADIUS * Math.sin(phi1) * Math.cos(theta1),
+        SHELL_RADIUS * Math.sin(phi1) * Math.sin(theta1),
+        SHELL_RADIUS * Math.cos(phi1)
+    );
+    
+    // Pick second random point on shell (not too far, not too close)
+    const angleOffset = 1.0 + Math.random() * 1.5;
+    const theta2 = theta1 + (Math.random() - 0.5) * angleOffset;
+    const phi2 = phi1 + (Math.random() - 0.5) * angleOffset;
+    const endPos = new THREE.Vector3(
+        SHELL_RADIUS * Math.sin(phi2) * Math.cos(theta2),
+        SHELL_RADIUS * Math.sin(phi2) * Math.sin(theta2),
+        SHELL_RADIUS * Math.cos(phi2)
+    );
+    
+    // Generate path that CRAWLS ALONG the shell surface
+    const numSegments = 50 + Math.floor(Math.random() * 40);
+    const path3D = [];
+    
+    for (let i = 0; i <= numSegments; i++) {
+        const t = i / numSegments;
+        
+        // Spherical interpolation - stay on the shell!
+        const point = new THREE.Vector3().lerpVectors(startPos, endPos, t);
+        point.normalize().multiplyScalar(SHELL_RADIUS);
+        
+        // Add sideways jitter (stays on shell surface)
+        if (i > 0 && i < numSegments) {
+            const normal = point.clone().normalize();
+            const tangent1 = new THREE.Vector3(0, 1, 0).cross(normal).normalize();
+            const tangent2 = normal.clone().cross(tangent1).normalize();
+            
+            const jitter = 50 + Math.random() * 100;
+            point.add(tangent1.multiplyScalar((Math.random() - 0.5) * jitter));
+            point.add(tangent2.multiplyScalar((Math.random() - 0.5) * jitter));
+            
+            // Snap back to shell surface!
+            point.normalize().multiplyScalar(SHELL_RADIUS);
+        }
+        
+        path3D.push(point);
+    }
+    
+    // White-blue color for shell lightning
+    const r = 200, g = 220, b = 255;
+    
+    // Create main bolt
+    const mainMaterial = new THREE.LineBasicMaterial({
+        color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
+        transparent: true,
+        opacity: 1.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    
+    const mainGeometry = new THREE.BufferGeometry().setFromPoints(path3D);
+    const mainLine = new THREE.Line(mainGeometry, mainMaterial);
+    lightningGroup.add(mainLine);
+    
+    // Create branches
+    const branchLines = [];
+    for (let i = 1; i < path3D.length - 1; i++) {
+        if (Math.random() < LIGHTNING_BRANCH_CHANCE * 0.5) {
+            const branchStart = path3D[i].clone();
+            
+            // Branch direction along shell surface (avoid NaN when at poles)
+            const normal = branchStart.clone().normalize();
+            let upVec = new THREE.Vector3(0, 1, 0);
+            if (Math.abs(normal.dot(upVec)) > 0.99) {
+                upVec = new THREE.Vector3(1, 0, 0);
+            }
+            const tangent1 = upVec.clone().cross(normal).normalize();
+            const tangent2 = normal.clone().cross(tangent1).normalize();
+            
+            const branchLength = 30 + Math.random() * 80;
+            const branchEnd = branchStart.clone()
+                .add(tangent1.multiplyScalar((Math.random() - 0.5) * branchLength))
+                .add(tangent2.multiplyScalar((Math.random() - 0.5) * branchLength));
+            
+            // Keep branch on shell surface too
+            branchEnd.normalize().multiplyScalar(SHELL_RADIUS);
+            
+            const branchMaterial = new THREE.LineBasicMaterial({
+                color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
+                transparent: true,
+                opacity: 0.7,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const branchGeometry = new THREE.BufferGeometry().setFromPoints([branchStart, branchEnd]);
+            const branchLine = new THREE.Line(branchGeometry, branchMaterial);
+            lightningGroup.add(branchLine);
+            branchLines.push(branchLine);
+        }
+    }
+    
+    activeLightningBolts.push({
+        color: 'shell',
+        spawnTime: Date.now(),
+        lifetime: LIGHTNING_BOLT_LIFETIME + Math.random() * 80,
+        mainLine: mainLine,
+        branchLines: branchLines
+    });
+}
 
      // ============ LENS FLARE SYSTEM FUNCTIONS ============
     function initLensFlare() {
@@ -3488,8 +3751,21 @@ function updateLightning() {
             updateUnderworldLuminaryLink();
         }
        
-        function createStarAxis() {
-            if (starAxisPivot) scene.remove(starAxisPivot);
+function createStarAxis() {
+    // DISPOSE old star axis to prevent memory leaks
+    if (starAxisPivot) {
+        if (starAxisLine) {
+            starAxisLine.geometry.dispose();
+            starAxisLine.material.dispose();
+        }
+        if (starAxisHandles && starAxisHandles.length > 0) {
+            starAxisHandles.forEach(handle => {
+                handle.geometry.dispose();
+                handle.material.dispose();
+            });
+        }
+        scene.remove(starAxisPivot);
+    }
             starAxisPivot = new THREE.Group();
             scene.add(starAxisPivot);
             const axisLength = SHELL_RADIUS * 1.3;
@@ -3577,14 +3853,48 @@ function updateLightning() {
             scene.add(gulfLabel2);
         }
        
-        function createGeometry() {
-            if (shellWireframe) scene.remove(shellWireframe);
-            if (diskWireframe) scene.remove(diskWireframe);
-            if (diskFill) scene.remove(diskFill);
-            if (axisLine) scene.remove(axisLine);
-            if (horizonPlane) scene.remove(horizonPlane);
-            if (gulfLabel) scene.remove(gulfLabel);
-            if (gulfLabel2) scene.remove(gulfLabel2);
+function createGeometry() {
+    // DISPOSE old geometry to prevent memory leaks
+    if (shellWireframe) {
+        shellWireframe.geometry.dispose();
+        shellWireframe.material.dispose();
+        scene.remove(shellWireframe);
+    }
+    if (diskWireframe) {
+        diskWireframe.geometry.dispose();
+        // diskMaterial is reused, don't dispose
+        scene.remove(diskWireframe);
+    }
+    if (diskFill) {
+        diskFill.geometry.dispose();
+        diskFill.material.dispose();
+        scene.remove(diskFill);
+    }
+    if (axisLine) {
+        axisLine.geometry.dispose();
+        axisLine.material.dispose();
+        scene.remove(axisLine);
+    }
+    if (horizonPlane) {
+        horizonPlane.geometry.dispose();
+        horizonPlane.material.dispose();
+        scene.remove(horizonPlane);
+    }
+    if (gulfLabel) {
+        gulfLabel.material.map.dispose();
+        gulfLabel.material.dispose();
+        scene.remove(gulfLabel);
+    }
+    if (gulfLabel2) {
+        gulfLabel2.material.map.dispose();
+        gulfLabel2.material.dispose();
+        scene.remove(gulfLabel2);
+    }
+    if (frostShell) {
+        frostShell.geometry.dispose();
+        // frostShellMaterial is reused, don't dispose
+        scene.remove(frostShell);
+    }
             shellWireframe = new THREE.Mesh(new THREE.SphereGeometry(SHELL_RADIUS, 24, 16), new THREE.MeshBasicMaterial({ color: 0x64b5f6, wireframe: true, transparent: true, opacity: 0.4, depthWrite: false }));
             scene.add(shellWireframe);
            
