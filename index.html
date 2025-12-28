@@ -71,6 +71,7 @@
 <canvas id="under-frost-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 51;"></canvas>
 <canvas id="fimbul-frost-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 51;"></canvas>
 <canvas id="lens-flare-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 52;"></canvas>
+<canvas id="lightning-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 53;"></canvas>
    
 <div id="grid-tooltip" style="position: absolute; display: none; background: rgba(0,0,0,0.9); border: 2px solid #ffdd44; border-radius: 10px; padding: 12px 16px; font-size: 14px; pointer-events: none; z-index: 1000; min-width: 220px;">
     <div style="color: #ffdd44; font-weight: bold; margin-bottom: 8px; font-size: 16px;" id="tooltip-hemisphere">UPPER HEMISPHERE</div>
@@ -341,6 +342,13 @@ let displayedUMoonBrightness = 0.8;
 let sunFlickerActive = false;
 let sunFlickerStartTime = 0;
 let sunWasOff = false;
+// Lightning system (re-ignition arcs)
+let lightningCanvas, lightningCtx;
+let lightningGroup;
+let activeLightningBolts = [];
+const LIGHTNING_SPAWN_RATE = 70; // Bolts per second at peak
+const LIGHTNING_BOLT_LIFETIME = 150; // ms per bolt
+const LIGHTNING_BRANCH_CHANCE = 0.5;
 const SUN_FLICKER_DURATION = 2500; // 2.5 seconds of flickering
 const SUN_OFF_THRESHOLD = 0.5; // Below this = "off"
 // Moon flicker system (re-ignition effect)
@@ -2579,6 +2587,252 @@ function updateFrostShell(elapsedTime) {
     fimbulFrostCtx = fimbulFrostCanvas.getContext('2d');
 }
 
+function initLightning() {
+    // Keep canvas for potential future use, but hide it
+    lightningCanvas = document.getElementById('lightning-canvas');
+    lightningCanvas.style.display = 'none';
+    
+    // Create 3D group for lightning geometry
+    lightningGroup = new THREE.Group();
+    lightningGroup.renderOrder = 999;
+    scene.add(lightningGroup);
+}
+
+function generateLightningPath3D(startPos, endPos, displacement, depth) {
+    const points = [startPos.clone()];
+    
+    // Calculate number of segments based on distance
+    const totalDist = startPos.distanceTo(endPos);
+    const numSegments = Math.floor(totalDist / 300) + 2;
+    
+    // Main direction
+    const mainDir = new THREE.Vector3().subVectors(endPos, startPos).normalize();
+    
+    // Build path with sharp angular offsets
+    let currentPos = startPos.clone();
+    
+    for (let i = 1; i < numSegments; i++) {
+        const t = i / numSegments;
+        
+        // Base position along the line
+        const basePos = new THREE.Vector3().lerpVectors(startPos, endPos, t);
+        
+        // Sharp random offset perpendicular to main direction
+        const offsetMagnitude = displacement * (1 - t * 0.5) * (Math.random() * 0.8 + 0.2);
+        
+        // Create perpendicular vectors
+        const up = new THREE.Vector3(0, 1, 0);
+        const perp1 = new THREE.Vector3().crossVectors(mainDir, up).normalize();
+        const perp2 = new THREE.Vector3().crossVectors(mainDir, perp1).normalize();
+        
+        // Random offset in perpendicular plane
+        const angle = Math.random() * Math.PI * 2;
+        const offset = perp1.clone().multiplyScalar(Math.cos(angle) * offsetMagnitude)
+            .add(perp2.clone().multiplyScalar(Math.sin(angle) * offsetMagnitude));
+        
+        currentPos = basePos.add(offset);
+        points.push(currentPos.clone());
+    }
+    
+    points.push(endPos.clone());
+    
+    return points;
+}
+
+function spawnLightningBolt3D(luminaryMesh, isUpperWorld, color) {
+    const startPos = luminaryMesh.position.clone();
+    
+    // Random direction in full 360 sphere (uniform distribution)
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    
+    const dirX = Math.sin(phi) * Math.cos(theta);
+    const dirY = Math.cos(phi);
+    const dirZ = Math.sin(phi) * Math.sin(theta);
+    
+    const direction = new THREE.Vector3(dirX, dirY, dirZ).normalize();
+    
+    // Find intersection with shell (sphere) or strata (plane)
+    let endPos = null;
+    
+    // Ray-sphere intersection for shell
+const rayA = 1;
+const rayB = 2 * startPos.dot(direction);
+const rayC = startPos.dot(startPos) - SHELL_RADIUS * SHELL_RADIUS;
+const discriminant = rayB * rayB - 4 * rayA * rayC;
+    
+    let shellT = Infinity;
+    if (discriminant >= 0) {
+        const sqrtD = Math.sqrt(discriminant);
+        const t1 = (-rayB + sqrtD) / 2;
+const t2 = (-rayB - sqrtD) / 2;
+        if (t1 > 10) shellT = t1;
+        if (t2 > 10 && t2 < shellT) shellT = t2;
+    }
+    
+    // Ray-plane intersection for strata surface
+    const strataY = isUpperWorld ? (DISK_THICKNESS / 2) : -(DISK_THICKNESS / 2);
+    let strataT = Infinity;
+    
+    if (Math.abs(direction.y) > 0.001) {
+        const t = (strataY - startPos.y) / direction.y;
+        if (t > 10) {
+            const hitX = startPos.x + t * direction.x;
+            const hitZ = startPos.z + t * direction.z;
+            const distFromCenter = Math.sqrt(hitX * hitX + hitZ * hitZ);
+            if (distFromCenter <= DISK_RADIUS) {
+                strataT = t;
+            }
+        }
+    }
+    
+    // Use closer valid intersection
+    if (shellT < strataT && shellT < Infinity) {
+        endPos = startPos.clone().add(direction.clone().multiplyScalar(shellT));
+    } else if (strataT < Infinity) {
+        endPos = startPos.clone().add(direction.clone().multiplyScalar(strataT));
+    } else if (shellT < Infinity) {
+        endPos = startPos.clone().add(direction.clone().multiplyScalar(shellT));
+    } else {
+        endPos = startPos.clone().add(direction.clone().multiplyScalar(SHELL_RADIUS));
+    }
+    
+    const path3D = generateLightningPath3D(startPos, endPos, 80, 0);
+    
+    // Generate branches
+    const branches = [];
+    for (let i = 1; i < path3D.length - 1; i++) {
+        if (Math.random() < LIGHTNING_BRANCH_CHANCE) {
+            const branchStart = path3D[i].clone();
+            const branchDir = new THREE.Vector3(
+                (Math.random() - 0.5),
+                (Math.random() - 0.5),
+                (Math.random() - 0.5)
+            ).normalize();
+            
+            const branchLength = 50 + Math.random() * 150;
+            const branchEnd = branchStart.clone().add(branchDir.multiplyScalar(branchLength));
+            branches.push([branchStart, branchEnd]);
+            
+            if (Math.random() < 0.4) {
+                const subDir = branchDir.clone();
+                subDir.x += (Math.random() - 0.5) * 0.8;
+                subDir.z += (Math.random() - 0.5) * 0.8;
+                subDir.normalize();
+                
+                const subLength = 25 + Math.random() * 60;
+                const midPoint = branchStart.clone().lerp(branchEnd, 0.5);
+                const subEnd = midPoint.clone().add(subDir.multiplyScalar(subLength));
+                branches.push([midPoint, subEnd]);
+            }
+        }
+    }
+    
+    // Determine color
+    let r, g, b;
+    if (color === 'sun') { r = 255; g = 255; b = 220; }
+    else if (color === 'moon') { r = 180; g = 200; b = 255; }
+    else if (color === 'usun') { r = 255; g = 120; b = 80; }
+    else if (color === 'umoon') { r = 150; g = 130; b = 255; }
+    
+    // Create main bolt as 3D Line
+    const mainMaterial = new THREE.LineBasicMaterial({
+        color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
+        transparent: true,
+        opacity: 1.0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    
+    const mainGeometry = new THREE.BufferGeometry().setFromPoints(path3D);
+    const mainLine = new THREE.Line(mainGeometry, mainMaterial);
+    lightningGroup.add(mainLine);
+    
+    // Create branch lines
+    const branchLines = [];
+    for (const branch of branches) {
+        const branchMaterial = new THREE.LineBasicMaterial({
+            color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
+            transparent: true,
+            opacity: 0.7,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const branchGeometry = new THREE.BufferGeometry().setFromPoints(branch);
+        const branchLine = new THREE.Line(branchGeometry, branchMaterial);
+        lightningGroup.add(branchLine);
+        branchLines.push(branchLine);
+    }
+    
+    activeLightningBolts.push({
+        color: color,
+        spawnTime: Date.now(),
+        lifetime: LIGHTNING_BOLT_LIFETIME + Math.random() * 80,
+        mainLine: mainLine,
+        branchLines: branchLines
+    });
+}
+
+function updateLightning() {
+    const now = Date.now();
+    
+    // Spawn bolts during flicker
+    if (sunFlickerActive && sunMesh && sunVisible) {
+        const flickerElapsed = now - sunFlickerStartTime;
+        const flickerProgress = flickerElapsed / SUN_FLICKER_DURATION;
+        const spawnChance = (1 - flickerProgress) * LIGHTNING_SPAWN_RATE / 60;
+        if (Math.random() < spawnChance) spawnLightningBolt3D(sunMesh, true, 'sun');
+    }
+    if (moonFlickerActive && moonMesh && moonVisible) {
+        const flickerElapsed = now - moonFlickerStartTime;
+        const flickerProgress = flickerElapsed / MOON_FLICKER_DURATION;
+        const spawnChance = (1 - flickerProgress) * LIGHTNING_SPAWN_RATE / 60;
+        if (Math.random() < spawnChance) spawnLightningBolt3D(moonMesh, true, 'moon');
+    }
+    if (uSunFlickerActive && underworldSunMesh && underworldSunVisible) {
+        const flickerElapsed = now - uSunFlickerStartTime;
+        const flickerProgress = flickerElapsed / USUN_FLICKER_DURATION;
+        const spawnChance = (1 - flickerProgress) * LIGHTNING_SPAWN_RATE / 60;
+        if (Math.random() < spawnChance) spawnLightningBolt3D(underworldSunMesh, false, 'usun');
+    }
+    if (uMoonFlickerActive && underworldMoonMesh && underworldMoonVisible) {
+        const flickerElapsed = now - uMoonFlickerStartTime;
+        const flickerProgress = flickerElapsed / UMOON_FLICKER_DURATION;
+        const spawnChance = (1 - flickerProgress) * LIGHTNING_SPAWN_RATE / 60;
+        if (Math.random() < spawnChance) spawnLightningBolt3D(underworldMoonMesh, false, 'umoon');
+    }
+    
+    // Update and remove expired bolts
+    for (let i = activeLightningBolts.length - 1; i >= 0; i--) {
+        const bolt = activeLightningBolts[i];
+        const age = now - bolt.spawnTime;
+        
+        if (age >= bolt.lifetime) {
+            // Remove from scene and dispose
+            lightningGroup.remove(bolt.mainLine);
+            bolt.mainLine.geometry.dispose();
+            bolt.mainLine.material.dispose();
+            
+            for (const branchLine of bolt.branchLines) {
+                lightningGroup.remove(branchLine);
+                branchLine.geometry.dispose();
+                branchLine.material.dispose();
+            }
+            
+            activeLightningBolts.splice(i, 1);
+            continue;
+        }
+        
+        // Fade based on age
+        const alpha = 1 - (age / bolt.lifetime);
+        bolt.mainLine.material.opacity = alpha;
+        for (const branchLine of bolt.branchLines) {
+            branchLine.material.opacity = alpha * 0.7;
+        }
+    }
+}
+
+
      // ============ LENS FLARE SYSTEM FUNCTIONS ============
     function initLensFlare() {
     lensFlareCanvas = document.getElementById('lens-flare-canvas');
@@ -2603,7 +2857,8 @@ function updateFrostShell(elapsedTime) {
     camera.getWorldDirection(cameraDir);
    
     // Check upper sun - no flare when sun is too dim
-        const inUpperGroundView = !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;
+        // Check upper sun - no flare when sun is too dim OR when in underworld view
+    const inUpperGroundView = !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;
     if (sunMesh && sunVisible && sunMesh.visible && SUN_BRIGHTNESS > 0.5 && inUpperGroundView) {
         const toSun = new THREE.Vector3().subVectors(sunMesh.position, camera.position).normalize();
         const dot = cameraDir.dot(toSun);
@@ -3397,6 +3652,7 @@ function updateFrostShell(elapsedTime) {
     initEdgeColdSystem();  
     initFimbulwinterFrost();
     initLensFlare();
+    initLightning();
     createStarAxis();
     createGeometry();
     createStarfield();
@@ -4507,6 +4763,7 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             updateUpperEdgeCold();
             updateUnderEdgeCold();
             updateLensFlare();
+            updateLightning();
 
            
             // Apply camera shiver at edge OR from Fimbulwinter
@@ -4528,7 +4785,7 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             // Resize cold system canvases
-    const canvasIds = ['upper-snow-canvas', 'upper-frost-canvas', 'under-snow-canvas', 'under-frost-canvas', 'fimbul-frost-canvas', 'lens-flare-canvas'];
+    const canvasIds = ['upper-snow-canvas', 'upper-frost-canvas', 'under-snow-canvas', 'under-frost-canvas', 'fimbul-frost-canvas', 'lens-flare-canvas', 'lightning-canvas'];
             canvasIds.forEach(id => {
                 const canvas = document.getElementById(id);
                 if (canvas) {
@@ -4542,4 +4799,3 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
     </script>
 </body>
 </html>
-
