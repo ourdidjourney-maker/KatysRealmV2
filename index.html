@@ -2603,7 +2603,8 @@ function updateFrostShell(elapsedTime) {
     camera.getWorldDirection(cameraDir);
    
     // Check upper sun - no flare when sun is too dim
-    if (sunMesh && sunVisible && sunMesh.visible && SUN_BRIGHTNESS > 0.5) {
+        const inUpperGroundView = !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;
+    if (sunMesh && sunVisible && sunMesh.visible && SUN_BRIGHTNESS > 0.5 && inUpperGroundView) {
         const toSun = new THREE.Vector3().subVectors(sunMesh.position, camera.position).normalize();
         const dot = cameraDir.dot(toSun);
        
@@ -4541,3 +4542,4 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
     </script>
 </body>
 </html>
+
