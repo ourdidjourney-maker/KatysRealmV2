@@ -3017,10 +3017,14 @@ function spawnShellLightningBolt() {
         const point = new THREE.Vector3().lerpVectors(startPos, endPos, t);
         point.normalize().multiplyScalar(SHELL_RADIUS);
         
-        // Add sideways jitter (stays on shell surface)
+         // Add sideways jitter (stays on shell surface)
         if (i > 0 && i < numSegments) {
             const normal = point.clone().normalize();
-            const tangent1 = new THREE.Vector3(0, 1, 0).cross(normal).normalize();
+            let upVec = new THREE.Vector3(0, 1, 0);
+            if (Math.abs(normal.dot(upVec)) > 0.99) {
+                upVec = new THREE.Vector3(1, 0, 0);
+            }
+            const tangent1 = upVec.clone().cross(normal).normalize();
             const tangent2 = normal.clone().cross(tangent1).normalize();
             
             const jitter = 50 + Math.random() * 100;
