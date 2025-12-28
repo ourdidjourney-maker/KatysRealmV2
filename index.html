@@ -287,6 +287,8 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(renderer.domElement);
        
         const raycaster = new THREE.Raycaster();
@@ -317,6 +319,7 @@ let luminaryViewAngles = { pitch: 0, yaw: 0 };
 let underworldLuminaryViewAngles = { pitch: 0, yaw: 0 };
         let realisticLighting = false;
 let sunMesh, moonMesh, sunLight, moonLight, sunGlow, moonGlow, sunHalo, moonHalo;
+let upperShellLight, lowerShellLight;
 // Underworld Luminaries
 let underworldSunMesh, underworldMoonMesh, underworldSunLight, underworldMoonLight;
 let underworldSunGlow, underworldMoonGlow, underworldSunHalo, underworldMoonHalo;
@@ -346,29 +349,29 @@ let sunWasOff = false;
 let lightningCanvas, lightningCtx;
 let lightningGroup;
 let activeLightningBolts = [];
-const LIGHTNING_SPAWN_RATE = 70; // Bolts per second at peak
-const LIGHTNING_BOLT_LIFETIME = 130; // ms per bolt
-const LIGHTNING_BRANCH_CHANCE = 0.5;
-const SHELL_LIGHTNING_SPAWN_RATE = 500;
-const SUN_FLICKER_DURATION = 2500; // 2.5 seconds of flickering
+const LIGHTNING_SPAWN_RATE = 300; // Bolts per second at peak
+const LIGHTNING_BOLT_LIFETIME = 100; // ms per bolt
+const LIGHTNING_BRANCH_CHANCE = 90.0;
+const SHELL_LIGHTNING_SPAWN_RATE = 900;
+const SUN_FLICKER_DURATION = 4500; 
 const SUN_OFF_THRESHOLD = 0.5; // Below this = "off"
 // Moon flicker system (re-ignition effect)
 let moonFlickerActive = false;
 let moonFlickerStartTime = 0;
 let moonWasOff = false;
-const MOON_FLICKER_DURATION = 2500;
+const MOON_FLICKER_DURATION = 3500;
 const MOON_OFF_THRESHOLD = 0.3;
 // Underworld Sun flicker system (re-ignition effect)
 let uSunFlickerActive = false;
 let uSunFlickerStartTime = 0;
 let uSunWasOff = false;
-const USUN_FLICKER_DURATION = 2500;
+const USUN_FLICKER_DURATION = 5500;
 const USUN_OFF_THRESHOLD = 0.5;
 // Underworld Moon flicker system (re-ignition effect)
 let uMoonFlickerActive = false;
 let uMoonFlickerStartTime = 0;
 let uMoonWasOff = false;
-const UMOON_FLICKER_DURATION = 2500;
+const UMOON_FLICKER_DURATION = 4500;
 const UMOON_OFF_THRESHOLD = 0.3;
 // ============ EDGE COLD SYSTEM - NIFLHEIM ============
 // Upper Edge View
@@ -973,7 +976,6 @@ function createSunAndMoon() {
            
             // Moon light - strong blue moonlight to overpower white
             moonLight = new THREE.PointLight(0x0033ff, MOON_BRIGHTNESS * 4, SHELL_RADIUS * 3);
-            moonLight.castShadow = true;
             scene.add(moonLight);
                         // ============ UNDERWORLD LUMINARIES ============
 
@@ -1083,7 +1085,6 @@ if (underworldMoonLight) scene.remove(underworldMoonLight);
            
             // Underworld Moon light - dark blue light
             underworldMoonLight = new THREE.PointLight(0x0033ff, MOON_BRIGHTNESS * 4, SHELL_RADIUS * 3);
-            underworldMoonLight.castShadow = true;
             scene.add(underworldMoonLight);
         }
        
@@ -1249,7 +1250,7 @@ function updateFrostShell(elapsedTime) {
    
     // Smooth interpolation - frost creeps slowly toward target
     const freezeSpeed = 0.0004;  // How fast frost spreads
-    const thawSpeed = 0.003;   // How fast frost retreats (slower)
+    const thawSpeed = 0.0030;   // How fast frost retreats (slower)
    
     // Upper frost smoothing
     if (targetUpperFrost > displayedUpperFrost) {
@@ -2740,6 +2741,26 @@ function initLightning() {
     lightningGroup = new THREE.Group();
     lightningGroup.renderOrder = 999;
     scene.add(lightningGroup);
+    
+    // Upper hemisphere shell lightning light (positioned at upper zenith)
+    upperShellLight = new THREE.PointLight(0xccddff, 0, SHELL_RADIUS * 2.5);
+    upperShellLight.position.set(0, SHELL_RADIUS * 0.7, 0);
+    upperShellLight.castShadow = true;
+    upperShellLight.shadow.mapSize.width = 512;
+    upperShellLight.shadow.mapSize.height = 512;
+    upperShellLight.shadow.camera.near = 100;
+    upperShellLight.shadow.camera.far = SHELL_RADIUS * 3;
+    scene.add(upperShellLight);
+    
+    // Lower hemisphere shell lightning light (positioned at lower zenith)
+    lowerShellLight = new THREE.PointLight(0xccddff, 0, SHELL_RADIUS * 2.5);
+    lowerShellLight.position.set(0, -SHELL_RADIUS * 0.7, 0);
+    lowerShellLight.castShadow = true;
+    lowerShellLight.shadow.mapSize.width = 512;
+    lowerShellLight.shadow.mapSize.height = 512;
+    lowerShellLight.shadow.camera.near = 100;
+    lowerShellLight.shadow.camera.far = SHELL_RADIUS * 3;
+    scene.add(lowerShellLight);
 }
 
 function generateLightningPath3D(startPos, endPos, displacement, depth) {
@@ -2923,28 +2944,42 @@ const t2 = (-rayB - sqrtD) / 2;
 function updateLightning() {
     const now = Date.now();
     
+    // Track shell lightning intensity per hemisphere
+    let upperShellIntensity = 0;
+    let lowerShellIntensity = 0;
+    
+    // Track which luminaries are flickering for color blending
+    let upperSunFlicker = 0;
+    let upperMoonFlicker = 0;
+    let lowerSunFlicker = 0;
+    let lowerMoonFlicker = 0;
+    
     // Spawn bolts during flicker
     if (sunFlickerActive && sunMesh && sunVisible) {
         const flickerElapsed = now - sunFlickerStartTime;
         const flickerProgress = flickerElapsed / SUN_FLICKER_DURATION;
+        upperSunFlicker = 1 - flickerProgress;
         const spawnChance = (1 - flickerProgress) * LIGHTNING_SPAWN_RATE / 60;
         if (Math.random() < spawnChance) spawnLightningBolt3D(sunMesh, true, 'sun');
     }
     if (moonFlickerActive && moonMesh && moonVisible) {
         const flickerElapsed = now - moonFlickerStartTime;
         const flickerProgress = flickerElapsed / MOON_FLICKER_DURATION;
+        upperMoonFlicker = 1 - flickerProgress;
         const spawnChance = (1 - flickerProgress) * LIGHTNING_SPAWN_RATE / 60;
         if (Math.random() < spawnChance) spawnLightningBolt3D(moonMesh, true, 'moon');
     }
     if (uSunFlickerActive && underworldSunMesh && underworldSunVisible) {
         const flickerElapsed = now - uSunFlickerStartTime;
         const flickerProgress = flickerElapsed / USUN_FLICKER_DURATION;
+        lowerSunFlicker = 1 - flickerProgress;
         const spawnChance = (1 - flickerProgress) * LIGHTNING_SPAWN_RATE / 60;
         if (Math.random() < spawnChance) spawnLightningBolt3D(underworldSunMesh, false, 'usun');
     }
     if (uMoonFlickerActive && underworldMoonMesh && underworldMoonVisible) {
         const flickerElapsed = now - uMoonFlickerStartTime;
         const flickerProgress = flickerElapsed / UMOON_FLICKER_DURATION;
+        lowerMoonFlicker = 1 - flickerProgress;
         const spawnChance = (1 - flickerProgress) * LIGHTNING_SPAWN_RATE / 60;
         if (Math.random() < spawnChance) spawnLightningBolt3D(underworldMoonMesh, false, 'umoon');
     }
@@ -2983,6 +3018,72 @@ function updateLightning() {
         for (const branchLine of bolt.branchLines) {
             branchLine.material.opacity = alpha * 0.7;
         }
+        
+        // Accumulate shell lightning intensity per hemisphere
+        if (bolt.color === 'shell') {
+            if (bolt.isUpperHemisphere) {
+                upperShellIntensity += alpha;
+            } else {
+                lowerShellIntensity += alpha;
+            }
+        }
+    }
+    
+    // Calculate blended colors based on active flickers
+    // Upper hemisphere light: fires when there are active upper hemisphere bolts
+    if (upperShellLight) {
+        if (upperShellIntensity > 0) {
+            const upperTotal = upperSunFlicker + upperMoonFlicker;
+            if (upperTotal > 0) {
+                const sunWeight = upperSunFlicker / upperTotal;
+                const moonWeight = upperMoonFlicker / upperTotal;
+                const r = sunWeight * 1.0 + moonWeight * 0.67;
+                const g = sunWeight * 1.0 + moonWeight * 0.8;
+                const b = sunWeight * 0.87 + moonWeight * 1.0;
+                upperShellLight.color.setRGB(r, g, b);
+            }
+            // else keep previous color
+            
+const flickerTime = Date.now() * 0.001;
+const flickerMultiplier = Math.max(
+    sunFlickerActive ? (Math.sin(flickerTime * 2.5) * Math.sin(flickerTime * 7.3) * 0.5 + 0.5) : 0,
+    moonFlickerActive ? (Math.sin(flickerTime * 3.1) * Math.sin(flickerTime * 5.7) * 0.5 + 0.5) : 0
+);
+const targetIntensity = Math.min(6, upperShellIntensity * 0.5) * (0.05 + flickerMultiplier * 0.95);
+            upperShellLight.intensity += (targetIntensity - upperShellLight.intensity) * 0.99;
+        } else {
+            upperShellLight.intensity *= 0.001;
+        }
+        upperShellLight.position.set(0, SHELL_RADIUS * 0.7, 0);
+        upperShellLight.distance = SHELL_RADIUS * 2.5;
+    }
+    
+    // Lower hemisphere light: fires when there are active lower hemisphere bolts
+    if (lowerShellLight) {
+        if (lowerShellIntensity > 0) {
+            const lowerTotal = lowerSunFlicker + lowerMoonFlicker;
+            if (lowerTotal > 0) {
+                const sunWeight = lowerSunFlicker / lowerTotal;
+                const moonWeight = lowerMoonFlicker / lowerTotal;
+                const r = sunWeight * 1.0 + moonWeight * 0.53;
+                const g = sunWeight * 0.4 + moonWeight * 0.47;
+                const b = sunWeight * 0.27 + moonWeight * 1.0;
+                lowerShellLight.color.setRGB(r, g, b);
+            }
+            // else keep previous color
+            
+const lowerFlickerTime = Date.now() * 0.001;
+const lowerFlickerMultiplier = Math.max(
+    uSunFlickerActive ? (Math.sin(lowerFlickerTime * 2.1) * Math.sin(lowerFlickerTime * 6.9) * 0.5 + 0.5) : 0,
+    uMoonFlickerActive ? (Math.sin(lowerFlickerTime * 2.7) * Math.sin(lowerFlickerTime * 5.3) * 0.5 + 0.5) : 0
+);
+const targetIntensity = Math.min(6, lowerShellIntensity * 0.5) * (0.05 + lowerFlickerMultiplier * 0.95);
+            lowerShellLight.intensity += (targetIntensity - lowerShellLight.intensity) * 0.99;
+        } else {
+            lowerShellLight.intensity *= 0.001;
+        }
+        lowerShellLight.position.set(0, -SHELL_RADIUS * 0.7, 0);
+        lowerShellLight.distance = SHELL_RADIUS * 2.5;
     }
 }
 
@@ -3091,14 +3192,20 @@ function spawnShellLightningBolt() {
         }
     }
     
-    activeLightningBolts.push({
-        color: 'shell',
-        spawnTime: Date.now(),
-        lifetime: LIGHTNING_BOLT_LIFETIME + Math.random() * 80,
-        mainLine: mainLine,
-        branchLines: branchLines
-    });
-}
+    // Determine which hemisphere's flicker spawned this bolt
+    const upperFlicker = sunFlickerActive || moonFlickerActive;
+    const lowerFlicker = uSunFlickerActive || uMoonFlickerActive;
+    
+activeLightningBolts.push({
+    color: 'shell',
+    spawnTime: Date.now(),
+    lifetime: LIGHTNING_BOLT_LIFETIME + Math.random() * 80,
+    mainLine: mainLine,
+    branchLines: branchLines,
+    isUpperHemisphere: upperFlicker && !lowerFlicker ? true : (!upperFlicker && lowerFlicker ? false : startPos.y >= 0),
+    flickerSource: sunFlickerActive ? 'sun' : (moonFlickerActive ? 'moon' : (uSunFlickerActive ? 'usun' : 'umoon'))
+});
+} 
 
      // ============ LENS FLARE SYSTEM FUNCTIONS ============
     function initLensFlare() {
@@ -3323,10 +3430,10 @@ function spawnShellLightningBolt() {
         // Decay: starts at 1.0, ends at 0.0
         const flickerDecay = 1.0 - (flickerElapsed / SUN_FLICKER_DURATION);
         // Rapid oscillation that slows down as it stabilizes
-        const flickerSpeed = 30 - (flickerDecay * 20); // 30Hz -> 10Hz
+        const flickerSpeed = 9 - (flickerDecay * 10); // 30Hz -> 10Hz
         const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
         // Flicker intensity decreases over time
-        sunFlickerMultiplier = 1.0 - (flicker * flickerDecay * 0.7);
+        sunFlickerMultiplier = 1.8 - (flicker * flickerDecay * 3.0);
     } else {
         sunFlickerActive = false;
     }
@@ -3337,9 +3444,9 @@ function spawnShellLightningBolt() {
     const flickerElapsed = Date.now() - moonFlickerStartTime;
     if (flickerElapsed < MOON_FLICKER_DURATION) {
         const flickerDecay = 1.0 - (flickerElapsed / MOON_FLICKER_DURATION);
-        const flickerSpeed = 30 - (flickerDecay * 20);
+        const flickerSpeed = 9 - (flickerDecay * 10);
         const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
-        moonFlickerMultiplier = 1.0 - (flicker * flickerDecay * 0.7);
+        moonFlickerMultiplier = 1.7 - (flicker * flickerDecay * 3.1);
     } else {
         moonFlickerActive = false;
     }
@@ -3350,9 +3457,9 @@ function spawnShellLightningBolt() {
     const flickerElapsed = Date.now() - uSunFlickerStartTime;
     if (flickerElapsed < USUN_FLICKER_DURATION) {
         const flickerDecay = 1.0 - (flickerElapsed / USUN_FLICKER_DURATION);
-        const flickerSpeed = 30 - (flickerDecay * 20);
+        const flickerSpeed = 9 - (flickerDecay * 11);
         const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
-        uSunFlickerMultiplier = 1.0 - (flicker * flickerDecay * 0.7);
+        uSunFlickerMultiplier = 1.8 - (flicker * flickerDecay * 3.2);
     } else {
         uSunFlickerActive = false;
     }
@@ -3363,9 +3470,9 @@ function spawnShellLightningBolt() {
     const flickerElapsed = Date.now() - uMoonFlickerStartTime;
     if (flickerElapsed < UMOON_FLICKER_DURATION) {
         const flickerDecay = 1.0 - (flickerElapsed / UMOON_FLICKER_DURATION);
-        const flickerSpeed = 30 - (flickerDecay * 20);
+        const flickerSpeed = 8 - (flickerDecay * 10);
         const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
-        uMoonFlickerMultiplier = 1.0 - (flicker * flickerDecay * 0.7);
+        uMoonFlickerMultiplier = 1.8 - (flicker * flickerDecay * 3.2);
     } else {
         uMoonFlickerActive = false;
     }
@@ -3903,8 +4010,10 @@ function createGeometry() {
             scene.add(shellWireframe);
            
             diskMaterial = new THREE.MeshPhongMaterial({ color: 0x2d5016, shininess: 30, side: THREE.DoubleSide, wireframe: strataWireframe });
-            diskWireframe = new THREE.Mesh(new THREE.CylinderGeometry(DISK_RADIUS, DISK_RADIUS, DISK_THICKNESS, 64, 1), diskMaterial);
-            scene.add(diskWireframe);
+diskWireframe = new THREE.Mesh(new THREE.CylinderGeometry(DISK_RADIUS, DISK_RADIUS, DISK_THICKNESS, 64, 1), diskMaterial);
+diskWireframe.castShadow = true;
+diskWireframe.receiveShadow = false;
+scene.add(diskWireframe);
            
             // Transparent fill for wireframe mode
             diskFillMaterial = new THREE.MeshBasicMaterial({ color: 0x2d5016, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
