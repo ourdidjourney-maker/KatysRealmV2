@@ -2185,7 +2185,7 @@ function createUnderworldLuminaryLink() {
 
     function updateUpperFimbulwinter() {
     // Only build intensity when in upper ground-level views
-    const inUpperGroundView = isGroundView && !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;
+const inUpperGroundView = isGroundView && !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView && !isSunView && !isMoonView;
    
     if (!inUpperGroundView) {
     upperFimbulwinterIntensity = 0;
@@ -5263,7 +5263,7 @@ if (source.upper) {
             const fimbulShiver = inUnderworldView ? lowerFimbulShiverIntensity : upperFimbulShiverIntensity;
             const totalShiver = Math.max(edgeShiver, fimbulShiver);
            
-            if (totalShiver > 0 && isGroundView) {
+            if (totalShiver > 0 && isGroundView && !isSunView && !isMoonView && !isUSunView && !isUMoonView) {
                 camera.position.x += (Math.random() - 0.5) * totalShiver;
                 camera.position.y += (Math.random() - 0.5) * totalShiver * 0.5;
                 camera.position.z += (Math.random() - 0.5) * totalShiver;
