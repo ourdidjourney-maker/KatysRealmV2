@@ -3690,7 +3690,7 @@ activeLightningBolts.push({
                 moonHalo.material.opacity = moonHaloOpacity * 1.4 * combinedMoonFactor * moonGlowFade;
                
                 moonLight.position.copy(moonMesh.position);
-                moonLight.intensity = realisticLighting ? moonEffectiveBrightness * moonFlickerMultiplier * 8 * combinedMoonFactor :             moonEffectiveBrightness * moonFlickerMultiplier * 4 * combinedMoonFactor;
+                moonLight.intensity = displayedMoonBrightness > 0.2 ? (realisticLighting ? moonEffectiveBrightness * moonFlickerMultiplier * 8 * combinedMoonFactor : moonEffectiveBrightness * moonFlickerMultiplier * 4 * combinedMoonFactor) : 0;
                 moonLight.color.setHex(0x0033ff);
                 moonLight.distance = MOON_LIGHT_RADIUS;
             } else if (moonMesh) {
@@ -3810,7 +3810,7 @@ activeLightningBolts.push({
                 underworldMoonHalo.material.opacity = combinedUMoonFactor * 0.5 * uMoonGlowFade;
                 
                 underworldMoonLight.position.copy(underworldMoonMesh.position);
-                underworldMoonLight.intensity = realisticLighting ? flickeredUMoonBrightness * 8 * combinedUMoonFactor : flickeredUMoonBrightness * 4 * combinedUMoonFactor;
+                underworldMoonLight.intensity = displayedUMoonBrightness > 0.2 ? (realisticLighting ? flickeredUMoonBrightness * 8 * combinedUMoonFactor : flickeredUMoonBrightness * 4 * combinedUMoonFactor) : 0;
                 underworldMoonLight.distance = UMOON_LIGHT_RADIUS;
                 underworldMoonLight.color.setHex(0x0033ff);
             } else if (underworldMoonMesh) {
