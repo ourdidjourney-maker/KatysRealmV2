@@ -238,8 +238,8 @@
         <button id="toggle-umoon-interference-button">Underworld Moon Phases</button>
         <button id="toggle-underworld-link-button">Underworld Luminary Distance</button>
         <button id="underworld-view-button">Underworld Ground View</button>
+        <button id="underworld-mid-view-button">Underworld Mid Plane View</button> 
         <button id="underworld-edge-view-button">Underworld Edge View</button>
-        <button id="underworld-mid-view-button">Underworld Mid Plane View</button>        
         <button id="toggle-resonance-button">Shell Resonance</button>
         <button id="shooting-stars-button">Shooting Stars</button>
         <button id="meteor-mode-button">Leonid Shower</button>
@@ -349,6 +349,18 @@ let moonFlickerStartTime = 0;
 let moonWasOff = false;
 const MOON_FLICKER_DURATION = 2500;
 const MOON_OFF_THRESHOLD = 0.3;
+// Underworld Sun flicker system (re-ignition effect)
+let uSunFlickerActive = false;
+let uSunFlickerStartTime = 0;
+let uSunWasOff = false;
+const USUN_FLICKER_DURATION = 2500;
+const USUN_OFF_THRESHOLD = 0.5;
+// Underworld Moon flicker system (re-ignition effect)
+let uMoonFlickerActive = false;
+let uMoonFlickerStartTime = 0;
+let uMoonWasOff = false;
+const UMOON_FLICKER_DURATION = 2500;
+const UMOON_OFF_THRESHOLD = 0.3;
 // ============ EDGE COLD SYSTEM - NIFLHEIM ============
 // Upper Edge View
 let upperEdgeSnowActive = false;
@@ -1002,7 +1014,7 @@ underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1);
             scene.add(underworldMoonHalo);
            
             // Underworld Moon light - dark blue light
-            underworldMoonLight = new THREE.PointLight(0x3344aa, MOON_BRIGHTNESS * 4, SHELL_RADIUS * 3);
+            underworldMoonLight = new THREE.PointLight(0x0033ff, MOON_BRIGHTNESS * 4, SHELL_RADIUS * 3);
             underworldMoonLight.castShadow = true;
             scene.add(underworldMoonLight);
         }
@@ -2807,7 +2819,32 @@ if (moonFlickerActive) {
         moonFlickerActive = false;
     }
 }
-           
+// Underworld Sun flicker effect (re-ignition)
+let uSunFlickerMultiplier = 1.0;
+if (uSunFlickerActive) {
+    const flickerElapsed = Date.now() - uSunFlickerStartTime;
+    if (flickerElapsed < USUN_FLICKER_DURATION) {
+        const flickerDecay = 1.0 - (flickerElapsed / USUN_FLICKER_DURATION);
+        const flickerSpeed = 30 - (flickerDecay * 20);
+        const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
+        uSunFlickerMultiplier = 1.0 - (flicker * flickerDecay * 0.7);
+    } else {
+        uSunFlickerActive = false;
+    }
+}
+// Underworld Moon flicker effect (re-ignition)
+let uMoonFlickerMultiplier = 1.0;
+if (uMoonFlickerActive) {
+    const flickerElapsed = Date.now() - uMoonFlickerStartTime;
+    if (flickerElapsed < UMOON_FLICKER_DURATION) {
+        const flickerDecay = 1.0 - (flickerElapsed / UMOON_FLICKER_DURATION);
+        const flickerSpeed = 30 - (flickerDecay * 20);
+        const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
+        uMoonFlickerMultiplier = 1.0 - (flicker * flickerDecay * 0.7);
+    } else {
+        uMoonFlickerActive = false;
+    }
+}
             // Update radial phase (slower cycle for seasons)
             sunRadialPhase += 0.0001 * SUN_SPEED;
             moonRadialPhase += 0.00015 * MOON_SPEED;
@@ -3094,7 +3131,8 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
                 underworldMoonMesh.position.set(uMoonX, uMoonY, uMoonZ);
                 
                 // Combine brightness slider AND interference factor
-                const uMoonBrightnessFactor = Math.min(1, displayedUMoonBrightness / 0.8);
+                const flickeredUMoonBrightness = displayedUMoonBrightness * uMoonFlickerMultiplier;
+const uMoonBrightnessFactor = Math.min(1, flickeredUMoonBrightness / 0.8);
                 const combinedUMoonFactor = uMoonBrightnessFactor * uMoonInterferenceFactor;
                 
                 // Blood moon when underworld sun is dying
@@ -3128,8 +3166,9 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
                 underworldMoonHalo.material.opacity = combinedUMoonFactor * 0.5 * uMoonGlowFade;
                 
                 underworldMoonLight.position.copy(underworldMoonMesh.position);
-                underworldMoonLight.intensity = realisticLighting ? displayedUMoonBrightness * 8 * combinedUMoonFactor : displayedUMoonBrightness * 4 * combinedUMoonFactor;
+                underworldMoonLight.intensity = realisticLighting ? flickeredUMoonBrightness * 8 * combinedUMoonFactor : flickeredUMoonBrightness * 4 * combinedUMoonFactor;
                 underworldMoonLight.distance = UMOON_LIGHT_RADIUS;
+                underworldMoonLight.color.setHex(0x0033ff);
             } else if (underworldMoonMesh) {
                 underworldMoonMesh.visible = false;
                 underworldMoonGlow.visible = false;
@@ -3140,7 +3179,8 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
             if (underworldSunMesh && underworldSunVisible) {
                 underworldSunMesh.position.set(uSunX, uSunY, uSunZ);
                 // Dim underworld sun mesh based on brightness (normalize to 0-1, default 1.5)
-                const uSunBrightnessFactor = Math.min(1, displayedUSunBrightness / 1.5);
+                const flickeredUSunBrightness = displayedUSunBrightness * uSunFlickerMultiplier;
+                const uSunBrightnessFactor = Math.min(1, flickeredUSunBrightness / 1.5);
                 if (displayedUSunBrightness < 0.2) {
                     // Go black at very low brightness (0.1 = minimum slider = full black)
                     const blackFactor = (displayedUSunBrightness - 0.1) / 0.1;
@@ -3157,7 +3197,7 @@ const uMoonInterferenceFactor = Math.pow(uRawInterference, UMOON_INTERFERENCE_DU
                 underworldSunHalo.visible = displayedUSunBrightness > 0.1;
                 underworldSunHalo.material.opacity = uSunBrightnessFactor * 0.3 * uSunGlowFade;
                 underworldSunLight.position.copy(underworldSunMesh.position);
-                underworldSunLight.intensity = displayedUSunBrightness > 0.2 ? (realisticLighting ? displayedUSunBrightness * 3 : displayedUSunBrightness) : 0;
+                underworldSunLight.intensity = displayedUSunBrightness > 0.2 ? (realisticLighting ? flickeredUSunBrightness * 3 : flickeredUSunBrightness) : 0;
                 underworldSunLight.distance = USUN_LIGHT_RADIUS;
                 
                 const uSunShellPoint = underworldSunMesh.position.clone().normalize().multiplyScalar(SHELL_RADIUS);
@@ -3729,7 +3769,24 @@ document.getElementById('moon-brightness').addEventListener('input', (e) => {
        
         // Underworld Sun controls
 document.getElementById('usun-speed').addEventListener('input', (e) => { USUN_SPEED = parseFloat(e.target.value); document.getElementById('usun-speed-value').textContent = USUN_SPEED.toFixed(1) + 'x'; });
-document.getElementById('usun-brightness').addEventListener('input', (e) => { USUN_BRIGHTNESS = parseFloat(e.target.value); document.getElementById('usun-brightness-value').textContent = USUN_BRIGHTNESS.toFixed(1); });
+document.getElementById('usun-brightness').addEventListener('input', (e) => {
+    const newBrightness = parseFloat(e.target.value);
+    
+    // Detect re-ignition: was off, now turning back on
+    if (uSunWasOff && newBrightness >= USUN_OFF_THRESHOLD) {
+        uSunFlickerActive = true;
+        uSunFlickerStartTime = Date.now();
+        uSunWasOff = false;
+    }
+    
+    // Track if underworld sun is currently "off"
+    if (newBrightness < USUN_OFF_THRESHOLD) {
+        uSunWasOff = true;
+    }
+    
+    USUN_BRIGHTNESS = newBrightness;
+    document.getElementById('usun-brightness-value').textContent = USUN_BRIGHTNESS.toFixed(1);
+});
 document.getElementById('usun-size').addEventListener('input', (e) => { USUN_SIZE = parseInt(e.target.value); document.getElementById('usun-size-value').textContent = USUN_SIZE + ' mi'; if (underworldSunMesh) { underworldSunMesh.geometry.dispose(); underworldSunMesh.geometry = new THREE.SphereGeometry(USUN_SIZE, 32, 32); } if (underworldSunGlow) underworldSunGlow.scale.set(USUN_SIZE * 10, USUN_SIZE * 10, 1); if (underworldSunHalo) underworldSunHalo.scale.set(USUN_SIZE * 18, USUN_SIZE * 18, 1); });
 document.getElementById('usun-height').addEventListener('input', (e) => { USUN_HEIGHT = parseInt(e.target.value); document.getElementById('usun-height-value').textContent = USUN_HEIGHT + ' mi'; });
 document.getElementById('usun-radius-min').addEventListener('input', (e) => { USUN_RADIUS_MIN = parseInt(e.target.value); document.getElementById('usun-radius-min-value').textContent = USUN_RADIUS_MIN + ' mi'; });
@@ -3737,7 +3794,24 @@ document.getElementById('usun-radius-max').addEventListener('input', (e) => { US
 document.getElementById('usun-light-radius').addEventListener('input', (e) => { USUN_LIGHT_RADIUS = parseInt(e.target.value); document.getElementById('usun-light-radius-value').textContent = USUN_LIGHT_RADIUS + ' mi'; });
 // Underworld Moon controls
 document.getElementById('umoon-speed').addEventListener('input', (e) => { UMOON_SPEED = parseFloat(e.target.value); document.getElementById('umoon-speed-value').textContent = UMOON_SPEED.toFixed(2) + 'x'; });
-document.getElementById('umoon-brightness').addEventListener('input', (e) => { UMOON_BRIGHTNESS = parseFloat(e.target.value); document.getElementById('umoon-brightness-value').textContent = UMOON_BRIGHTNESS.toFixed(1); });
+document.getElementById('umoon-brightness').addEventListener('input', (e) => {
+    const newBrightness = parseFloat(e.target.value);
+    
+    // Detect re-ignition: was off, now turning back on
+    if (uMoonWasOff && newBrightness >= UMOON_OFF_THRESHOLD) {
+        uMoonFlickerActive = true;
+        uMoonFlickerStartTime = Date.now();
+        uMoonWasOff = false;
+    }
+    
+    // Track if underworld moon is currently "off"
+    if (newBrightness < UMOON_OFF_THRESHOLD) {
+        uMoonWasOff = true;
+    }
+    
+    UMOON_BRIGHTNESS = newBrightness;
+    document.getElementById('umoon-brightness-value').textContent = UMOON_BRIGHTNESS.toFixed(1);
+});;
 document.getElementById('umoon-size').addEventListener('input', (e) => { UMOON_SIZE = parseInt(e.target.value); document.getElementById('umoon-size-value').textContent = UMOON_SIZE + ' mi'; if (underworldMoonMesh) { underworldMoonMesh.geometry.dispose(); underworldMoonMesh.geometry = new THREE.SphereGeometry(UMOON_SIZE, 32, 32); } if (underworldMoonGlow) underworldMoonGlow.scale.set(UMOON_SIZE * 10, UMOON_SIZE * 10, 1); if (underworldMoonHalo) underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1); });
 document.getElementById('umoon-height').addEventListener('input', (e) => { UMOON_HEIGHT = parseInt(e.target.value); document.getElementById('umoon-height-value').textContent = UMOON_HEIGHT + ' mi'; });
 document.getElementById('umoon-radius-min').addEventListener('input', (e) => { UMOON_RADIUS_MIN = parseInt(e.target.value); document.getElementById('umoon-radius-min-value').textContent = UMOON_RADIUS_MIN + ' mi'; });
