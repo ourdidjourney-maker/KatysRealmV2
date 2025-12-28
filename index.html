@@ -256,6 +256,7 @@
         <button id="toggle-axes-button">Hide Axes</button>
         <button id="toggle-lens-flare-button">Lens Flare</button>
         <button id="toggle-ripple-button">Gulf Ripple</button>
+        <button id="random-lightning-button">Random Lightning</button>
         <button id="toggle-strata-grid-button">Strata Coordinates</button>
         <button id="toggle-shell-grid-button">Kayleigh Coordinates</button>
         <button id="reset-axis-button">Reset Star Axis</button>
@@ -350,10 +351,11 @@ let lightningCanvas, lightningCtx;
 let lightningGroup;
 let activeLightningBolts = [];
 const LIGHTNING_SPAWN_RATE = 300; // Bolts per second at peak
-const LIGHTNING_BOLT_LIFETIME = 100; // ms per bolt
+const LIGHTNING_BOLT_LIFETIME = 200; // ms per bolt
 const LIGHTNING_BRANCH_CHANCE = 90.0;
 const SHELL_LIGHTNING_SPAWN_RATE = 900;
-const SUN_FLICKER_DURATION = 4500; 
+const SUN_FLICKER_DURATION = 4500;
+let randomLightningMode = false;
 const SUN_OFF_THRESHOLD = 0.5; // Below this = "off"
 // Moon flicker system (re-ignition effect)
 let moonFlickerActive = false;
@@ -3139,8 +3141,18 @@ function spawnShellLightningBolt() {
         path3D.push(point);
     }
     
-    // White-blue color for shell lightning
-    const r = 200, g = 220, b = 255;
+// Match shell lightning color to whichever luminary is flickering
+let r = 200, g = 220, b = 255; // default white-blue
+
+if (sunFlickerActive) {
+    r = 255; g = 255; b = 220; // gold for upper sun
+} else if (moonFlickerActive) {
+    r = 180; g = 200; b = 255; // blue for upper moon
+} else if (uSunFlickerActive) {
+    r = 255; g = 120; b = 80;  // red for underworld sun
+} else if (uMoonFlickerActive) {
+    r = 150; g = 130; b = 255; // violet for underworld moon
+}
     
     // Create main bolt
     const mainMaterial = new THREE.LineBasicMaterial({
@@ -4932,6 +4944,11 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
 });
         document.getElementById('toggle-horizon-button').addEventListener('click', () => { horizonVisible = !horizonVisible; horizonPlane.visible = horizonVisible; gulfLabel.visible = horizonVisible; gulfLabel2.visible = horizonVisible; document.getElementById('toggle-horizon-button').textContent = horizonVisible ? 'Hide Gulf' : 'Show Gulf'; });
         document.getElementById('toggle-ripple-button').addEventListener('click', () => { gulfRippling = !gulfRippling; document.getElementById('toggle-ripple-button').textContent = gulfRippling ? 'Stop Ripple' : 'Gulf Ripple'; document.getElementById('toggle-ripple-button').classList.toggle('active', gulfRippling); });
+        document.getElementById('random-lightning-button').addEventListener('click', () => {
+    randomLightningMode = !randomLightningMode;
+    document.getElementById('random-lightning-button').textContent = randomLightningMode ? 'Lightning ON' : 'Random Lightning';
+    document.getElementById('random-lightning-button').classList.toggle('active', randomLightningMode);
+});
         document.getElementById('shooting-stars-button').addEventListener('click', () => {
             shootingStarsMode = !shootingStarsMode;
             lastShootingStarTime = Date.now();
@@ -5186,6 +5203,57 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             updateUpperEdgeCold();
             updateUnderEdgeCold();
             updateLensFlare();
+// Random lightning mode - unpredictable strikes
+if (randomLightningMode && Math.random() < 0.0004) {
+    // Random color selection
+    const colors = ['sun', 'moon', 'usun', 'umoon'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    
+    // Pick a random luminary to strike from
+    const luminaries = [];
+    if (sunMesh && sunVisible) luminaries.push({ mesh: sunMesh, upper: true, type: 'sun' });
+    if (moonMesh && moonVisible) luminaries.push({ mesh: moonMesh, upper: true, type: 'moon' });
+    if (underworldSunMesh && underworldSunVisible) luminaries.push({ mesh: underworldSunMesh, upper: false, type: 'usun' });
+    if (underworldMoonMesh && underworldMoonVisible) luminaries.push({ mesh: underworldMoonMesh, upper: false, type: 'umoon' });
+    
+    if (luminaries.length > 0) {
+        const source = luminaries[Math.floor(Math.random() * luminaries.length)];
+        
+// Trigger a SHORT flicker for random lightning (half duration)
+const flickerOffset = 2500; // Skip ahead 2.5 seconds into the flicker
+if (source.type === 'sun') {
+    sunFlickerActive = true;
+    sunFlickerStartTime = Date.now() - flickerOffset;
+} else if (source.type === 'moon') {
+    moonFlickerActive = true;
+    moonFlickerStartTime = Date.now() - flickerOffset;
+} else if (source.type === 'usun') {
+    uSunFlickerActive = true;
+    uSunFlickerStartTime = Date.now() - flickerOffset;
+} else if (source.type === 'umoon') {
+    uMoonFlickerActive = true;
+    uMoonFlickerStartTime = Date.now() - flickerOffset;
+}
+        
+        // Spawn a burst of 5-12 bolts
+        const boltCount = 5 + Math.floor(Math.random() * 8);
+        for (let i = 0; i < boltCount; i++) {
+            const burstColor = source.type; // Match color to flickering luminary
+            spawnLightningBolt3D(source.mesh, source.upper, burstColor);
+        }
+    }
+    // Flash the appropriate shell light
+if (source.upper) {
+    upperShellLight.intensity = 6;
+} else {
+    lowerShellLight.intensity = 6;
+}
+    
+    // Also spawn shell lightning occasionally
+    if (Math.random() < 0.4) {
+        spawnShellLightningBolt();
+    }
+}
             updateLightning();
 
            
