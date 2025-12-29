@@ -2184,8 +2184,7 @@ function createUnderworldLuminaryLink() {
 
     function updateUpperFimbulwinter() {
     // Only build intensity when in upper ground-level views
-const inUpperGroundView = isGroundView && !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView && !isSunView && !isMoonView;
-   
+const inUpperGroundView = isGroundView && !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;   
     if (!inUpperGroundView) {
     upperFimbulwinterIntensity = 0;
     upperFimbulwinterActive = false;
@@ -5261,17 +5260,24 @@ if (source.type === 'sun') {
             const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
             const edgeShiver = inUnderworldView ? underShiverIntensity : upperShiverIntensity;
             const fimbulShiver = inUnderworldView ? lowerFimbulShiverIntensity : upperFimbulShiverIntensity;
-            const totalShiver = Math.max(edgeShiver, fimbulShiver);
            
-            if (totalShiver > 0 && isGroundView && !isSunView && !isMoonView && !isUSunView && !isUMoonView) {
-                camera.position.x += (Math.random() - 0.5) * totalShiver;
-                camera.position.y += (Math.random() - 0.5) * totalShiver * 0.5;
-                camera.position.z += (Math.random() - 0.5) * totalShiver;
+            // Edge shiver only at edge views, Fimbul shiver at ALL ground views including luminary
+            const isLuminaryView = isSunView || isMoonView || isUSunView || isUMoonView;
+            const isEdgeOnlyView = isEdgeView || isUnderworldEdgeView;
+            
+            // Luminary views only get Fimbul shiver, not edge shiver
+            const activeShiver = isLuminaryView ? fimbulShiver : Math.max(edgeShiver, fimbulShiver);
+           
+            if (activeShiver > 0 && isGroundView) {
+                camera.position.x += (Math.random() - 0.5) * activeShiver;
+                camera.position.y += (Math.random() - 0.5) * activeShiver * 0.5;
+                camera.position.z += (Math.random() - 0.5) * activeShiver;
             }
+            
             renderer.render(scene, camera);
         }
        
-    window.addEventListener('resize', () => {
+        window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
