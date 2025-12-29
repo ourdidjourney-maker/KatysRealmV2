@@ -2134,7 +2134,7 @@ function createUnderworldLuminaryLink() {
     // ============ FIMBULWINTER CALCULATION FUNCTIONS ============
     // These calculate intensity based on sun/moon state - NO CAMERA CODE
 
-    function calculateUpperFimbulwinterIntensity() {
+function calculateUpperFimbulwinterIntensity() {
     // Skip if sun is hidden entirely (user toggle, not dying)
     if (!sunVisible) return 0;
    
@@ -2145,22 +2145,19 @@ function createUnderworldLuminaryLink() {
     // Combined sun weakness (either being low triggers it)
     let sunWeakness = Math.max(sunBrightnessWeakness, sunSizeWeakness);
    
-    // Moon factor - if moon is also dark (interference enabled and low), make it worse
+    // Moon factor - ONLY check the slider brightness, NOT the interference position
     let moonPenalty = 0;
-    if (moonVisible && moonInterferenceEnabled) {
-        // moonRadialFactor is calculated in updateSunAndMoon - we need to recalculate here
-        const moonRadialFactor = 0.5 + 0.5 * Math.sin(moonRadialPhase);
-        // When moonRadialFactor > 0.7, moon is getting dark
-        if (moonRadialFactor > 0.7) {
-            moonPenalty = (moonRadialFactor - 0.7) / 0.3 * FIMBULWINTER_MOON_MULTIPLIER;
-        }
+    if (moonVisible) {
+        // Moon contributes to cold ONLY if its brightness slider is low
+        const moonBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - MOON_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
+        moonPenalty = moonBrightnessWeakness * FIMBULWINTER_MOON_MULTIPLIER;
     }
    
     // Final intensity: sun weakness + moon penalty, capped at 1
     return Math.min(1, sunWeakness + moonPenalty);
 }
 
-    function calculateLowerFimbulwinterIntensity() {
+function calculateLowerFimbulwinterIntensity() {
     // INDEPENDENT SYSTEM - uses underworld sun/moon only
     if (!underworldSunVisible) return 0;
    
@@ -2170,13 +2167,11 @@ function createUnderworldLuminaryLink() {
    
     let uSunWeakness = Math.max(uSunBrightnessWeakness, uSunSizeWeakness);
    
-    // Underworld moon factor
+    // Underworld moon factor - ONLY check the slider brightness
     let uMoonPenalty = 0;
-    if (underworldMoonVisible && underworldMoonInterferenceEnabled) {
-        const uMoonRadialFactor = 0.5 + 0.5 * Math.sin(underworldMoonRadialPhase);
-        if (uMoonRadialFactor > 0.7) {
-            uMoonPenalty = (uMoonRadialFactor - 0.7) / 0.3 * FIMBULWINTER_MOON_MULTIPLIER;
-        }
+    if (underworldMoonVisible) {
+        const uMoonBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - UMOON_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
+        uMoonPenalty = uMoonBrightnessWeakness * FIMBULWINTER_MOON_MULTIPLIER;
     }
    
     return Math.min(1, uSunWeakness + uMoonPenalty);
