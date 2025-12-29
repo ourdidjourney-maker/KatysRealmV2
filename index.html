@@ -320,7 +320,6 @@ let luminaryViewAngles = { pitch: 0, yaw: 0 };
 let underworldLuminaryViewAngles = { pitch: 0, yaw: 0 };
         let realisticLighting = false;
 let sunMesh, moonMesh, sunLight, moonLight, sunGlow, moonGlow, sunHalo, moonHalo;
-let upperShellLight, lowerShellLight;
 // Underworld Luminaries
 let underworldSunMesh, underworldMoonMesh, underworldSunLight, underworldMoonLight;
 let underworldSunGlow, underworldMoonGlow, underworldSunHalo, underworldMoonHalo;
@@ -2743,26 +2742,6 @@ function initLightning() {
     lightningGroup = new THREE.Group();
     lightningGroup.renderOrder = 999;
     scene.add(lightningGroup);
-    
-    // Upper hemisphere shell lightning light (positioned at upper zenith)
-    upperShellLight = new THREE.PointLight(0xccddff, 0, SHELL_RADIUS * 2.5);
-    upperShellLight.position.set(0, SHELL_RADIUS * 0.7, 0);
-    upperShellLight.castShadow = true;
-    upperShellLight.shadow.mapSize.width = 512;
-    upperShellLight.shadow.mapSize.height = 512;
-    upperShellLight.shadow.camera.near = 100;
-    upperShellLight.shadow.camera.far = SHELL_RADIUS * 3;
-    scene.add(upperShellLight);
-    
-    // Lower hemisphere shell lightning light (positioned at lower zenith)
-    lowerShellLight = new THREE.PointLight(0xccddff, 0, SHELL_RADIUS * 2.5);
-    lowerShellLight.position.set(0, -SHELL_RADIUS * 0.7, 0);
-    lowerShellLight.castShadow = true;
-    lowerShellLight.shadow.mapSize.width = 512;
-    lowerShellLight.shadow.mapSize.height = 512;
-    lowerShellLight.shadow.camera.near = 100;
-    lowerShellLight.shadow.camera.far = SHELL_RADIUS * 3;
-    scene.add(lowerShellLight);
 }
 
 function generateLightningPath3D(startPos, endPos, displacement, depth) {
@@ -2946,16 +2925,6 @@ const t2 = (-rayB - sqrtD) / 2;
 function updateLightning() {
     const now = Date.now();
     
-    // Track shell lightning intensity per hemisphere
-    let upperShellIntensity = 0;
-    let lowerShellIntensity = 0;
-    
-    // Track which luminaries are flickering for color blending
-    let upperSunFlicker = 0;
-    let upperMoonFlicker = 0;
-    let lowerSunFlicker = 0;
-    let lowerMoonFlicker = 0;
-    
     // Spawn bolts during flicker
     if (sunFlickerActive && sunMesh && sunVisible) {
         const flickerElapsed = now - sunFlickerStartTime;
@@ -3021,71 +2990,6 @@ function updateLightning() {
             branchLine.material.opacity = alpha * 0.7;
         }
         
-        // Accumulate shell lightning intensity per hemisphere
-        if (bolt.color === 'shell') {
-            if (bolt.isUpperHemisphere) {
-                upperShellIntensity += alpha;
-            } else {
-                lowerShellIntensity += alpha;
-            }
-        }
-    }
-    
-    // Calculate blended colors based on active flickers
-    // Upper hemisphere light: fires when there are active upper hemisphere bolts
-    if (upperShellLight) {
-        if (upperShellIntensity > 0) {
-            const upperTotal = upperSunFlicker + upperMoonFlicker;
-            if (upperTotal > 0) {
-                const sunWeight = upperSunFlicker / upperTotal;
-                const moonWeight = upperMoonFlicker / upperTotal;
-                const r = sunWeight * 1.0 + moonWeight * 0.67;
-                const g = sunWeight * 1.0 + moonWeight * 0.8;
-                const b = sunWeight * 0.87 + moonWeight * 1.0;
-                upperShellLight.color.setRGB(r, g, b);
-            }
-            // else keep previous color
-            
-const flickerTime = Date.now() * 0.001;
-const flickerMultiplier = Math.max(
-    sunFlickerActive ? (Math.sin(flickerTime * 2.5) * Math.sin(flickerTime * 7.3) * 0.5 + 0.5) : 0,
-    moonFlickerActive ? (Math.sin(flickerTime * 3.1) * Math.sin(flickerTime * 5.7) * 0.5 + 0.5) : 0
-);
-const targetIntensity = Math.min(6, upperShellIntensity * 0.5) * (0.05 + flickerMultiplier * 0.95);
-            upperShellLight.intensity += (targetIntensity - upperShellLight.intensity) * 0.99;
-        } else {
-            upperShellLight.intensity *= 0.001;
-        }
-        upperShellLight.position.set(0, SHELL_RADIUS * 0.7, 0);
-        upperShellLight.distance = SHELL_RADIUS * 2.5;
-    }
-    
-    // Lower hemisphere light: fires when there are active lower hemisphere bolts
-    if (lowerShellLight) {
-        if (lowerShellIntensity > 0) {
-            const lowerTotal = lowerSunFlicker + lowerMoonFlicker;
-            if (lowerTotal > 0) {
-                const sunWeight = lowerSunFlicker / lowerTotal;
-                const moonWeight = lowerMoonFlicker / lowerTotal;
-                const r = sunWeight * 1.0 + moonWeight * 0.53;
-                const g = sunWeight * 0.4 + moonWeight * 0.47;
-                const b = sunWeight * 0.27 + moonWeight * 1.0;
-                lowerShellLight.color.setRGB(r, g, b);
-            }
-            // else keep previous color
-            
-const lowerFlickerTime = Date.now() * 0.001;
-const lowerFlickerMultiplier = Math.max(
-    uSunFlickerActive ? (Math.sin(lowerFlickerTime * 2.1) * Math.sin(lowerFlickerTime * 6.9) * 0.5 + 0.5) : 0,
-    uMoonFlickerActive ? (Math.sin(lowerFlickerTime * 2.7) * Math.sin(lowerFlickerTime * 5.3) * 0.5 + 0.5) : 0
-);
-const targetIntensity = Math.min(6, lowerShellIntensity * 0.5) * (0.05 + lowerFlickerMultiplier * 0.95);
-            lowerShellLight.intensity += (targetIntensity - lowerShellLight.intensity) * 0.99;
-        } else {
-            lowerShellLight.intensity *= 0.001;
-        }
-        lowerShellLight.position.set(0, -SHELL_RADIUS * 0.7, 0);
-        lowerShellLight.distance = SHELL_RADIUS * 2.5;
     }
 }
 
@@ -5242,12 +5146,6 @@ if (source.type === 'sun') {
             spawnLightningBolt3D(source.mesh, source.upper, burstColor);
         }
     }
-    // Flash the appropriate shell light
-if (source.upper) {
-    upperShellLight.intensity = 6;
-} else {
-    lowerShellLight.intensity = 6;
-}
     
     // Also spawn shell lightning occasionally
     if (Math.random() < 0.4) {
