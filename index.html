@@ -2884,14 +2884,14 @@ const t2 = (-rayB - sqrtD) / 2;
     else if (color === 'usun') { r = 255; g = 120; b = 80; }
     else if (color === 'umoon') { r = 150; g = 130; b = 255; }
     
-    // Create main bolt as 3D Line
-    const mainMaterial = new THREE.LineBasicMaterial({
-        color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
-        transparent: true,
-        opacity: 1.0,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-    });
+// Create main bolt as 3D Line
+const mainMaterial = new THREE.LineBasicMaterial({
+    color: new THREE.Color(`rgb(${Math.min(255, r * 1.5)}, ${Math.min(255, g * 1.5)}, ${Math.min(255, b * 1.5)})`),
+    transparent: true,
+    opacity: 1.0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+});
     
     const mainGeometry = new THREE.BufferGeometry().setFromPoints(path3D);
     const mainLine = new THREE.Line(mainGeometry, mainMaterial);
@@ -3094,13 +3094,13 @@ if (sunFlickerActive) {
             // Keep branch on shell surface too
             branchEnd.normalize().multiplyScalar(SHELL_RADIUS);
             
-            const branchMaterial = new THREE.LineBasicMaterial({
-                color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
-                transparent: true,
-                opacity: 0.7,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
+const branchMaterial = new THREE.LineBasicMaterial({
+    color: new THREE.Color(`rgb(${Math.min(255, r * 1.5)}, ${Math.min(255, g * 1.5)}, ${Math.min(255, b * 1.5)})`),
+    transparent: true,
+    opacity: 0.7,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+});
             const branchGeometry = new THREE.BufferGeometry().setFromPoints([branchStart, branchEnd]);
             const branchLine = new THREE.Line(branchGeometry, branchMaterial);
             lightningGroup.add(branchLine);
@@ -3637,7 +3637,7 @@ if (moonFlickerActive) {
 
 const baseMoonIntensity = displayedMoonBrightness > 0.2 ? (realisticLighting ? moonEffectiveBrightness * moonFlickerMultiplier * 8 * combinedMoonFactor : moonEffectiveBrightness * moonFlickerMultiplier * 4 * combinedMoonFactor) : 0;
 moonLight.intensity = baseMoonIntensity * moonIntensityBoost;
-moonLight.color.setHex(0x8899bb);
+moonLight.color.setHex(0x0033ff);
 moonLight.distance = MOON_LIGHT_RADIUS * moonRadiusMultiplier;
             } else if (moonMesh) {
                 moonMesh.visible = false;
