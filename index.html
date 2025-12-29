@@ -3492,9 +3492,32 @@ activeLightningBolts.push({
                 sunHalo.position.copy(sunMesh.position);
                 sunHalo.visible = displayedSunBrightness > 0.1;
                 sunHalo.material.opacity = sunBrightnessFactor * 0.3 * sunGlowFade;
-                sunLight.position.copy(sunMesh.position);
-                sunLight.intensity = displayedSunBrightness > 0.2 ? (realisticLighting ? flickeredSunBrightness * 3 : flickeredSunBrightness) : 0;
-                sunLight.distance = SUN_LIGHT_RADIUS;
+sunLight.position.copy(sunMesh.position);
+sunLight.intensity = displayedSunBrightness > 0.2 ? (realisticLighting ? flickeredSunBrightness * 3 : flickeredSunBrightness) : 0;
+
+sunLight.position.copy(sunMesh.position);
+
+// Pulse BOTH intensity AND radius during flicker - reignition light blast
+let sunIntensityBoost = 1.0;
+let sunRadiusMultiplier = 1.0;
+if (sunFlickerActive) {
+    const flickerElapsed = Date.now() - sunFlickerStartTime;
+    const flickerProgress = flickerElapsed / SUN_FLICKER_DURATION;
+    const flickerDecay = 1.0 - flickerProgress;
+    const flickerSpeed = 9 - (flickerDecay * 10);
+    const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
+    const sharpFlicker = Math.pow(flicker, 0.5); // Sharper peaks - bright flashes pop harder
+    
+    // Intensity spikes up to 8x during peaks - DRAMATIC
+    sunIntensityBoost = 1.0 + (sharpFlicker * flickerDecay * 7.0);
+    // Radius expands up to 2.5x during peaks
+    sunRadiusMultiplier = 1.0 + (sharpFlicker * flickerDecay * 1.0);
+}
+
+const baseIntensity = displayedSunBrightness > 0.2 ? (realisticLighting ? flickeredSunBrightness * 3 : flickeredSunBrightness) : 0;
+sunLight.intensity = baseIntensity * sunIntensityBoost;
+sunLight.distance = SUN_LIGHT_RADIUS * sunRadiusMultiplier;
+sunLight.distance = SUN_LIGHT_RADIUS * sunRadiusMultiplier;
             } else if (sunMesh) {
                 sunMesh.visible = false;
                 sunGlow.visible = false;
@@ -3593,10 +3616,29 @@ activeLightningBolts.push({
                 moonHalo.visible = displayedMoonBrightness > 0.1;
                 moonHalo.material.opacity = moonHaloOpacity * 1.4 * combinedMoonFactor * moonGlowFade;
                
-                moonLight.position.copy(moonMesh.position);
-                moonLight.intensity = displayedMoonBrightness > 0.2 ? (realisticLighting ? moonEffectiveBrightness * moonFlickerMultiplier * 8 * combinedMoonFactor : moonEffectiveBrightness * moonFlickerMultiplier * 4 * combinedMoonFactor) : 0;
-                moonLight.color.setHex(0x0033ff);
-                moonLight.distance = MOON_LIGHT_RADIUS;
+moonLight.position.copy(moonMesh.position);
+
+// Pulse BOTH intensity AND radius during flicker - reignition light blast
+let moonIntensityBoost = 1.0;
+let moonRadiusMultiplier = 1.0;
+if (moonFlickerActive) {
+    const flickerElapsed = Date.now() - moonFlickerStartTime;
+    const flickerProgress = flickerElapsed / MOON_FLICKER_DURATION;
+    const flickerDecay = 1.0 - flickerProgress;
+    const flickerSpeed = 9 - (flickerDecay * 10);
+    const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
+    const sharpFlicker = Math.pow(flicker, 0.5); // Sharper peaks - bright flashes pop harder
+    
+    // Intensity spikes up to 8x during peaks - DRAMATIC
+    moonIntensityBoost = 1.0 + (sharpFlicker * flickerDecay * 7.0);
+    // Radius expands up to 2x during peaks
+    moonRadiusMultiplier = 1.0 + (sharpFlicker * flickerDecay * 1.0);
+}
+
+const baseMoonIntensity = displayedMoonBrightness > 0.2 ? (realisticLighting ? moonEffectiveBrightness * moonFlickerMultiplier * 8 * combinedMoonFactor : moonEffectiveBrightness * moonFlickerMultiplier * 4 * combinedMoonFactor) : 0;
+moonLight.intensity = baseMoonIntensity * moonIntensityBoost;
+moonLight.color.setHex(0x8899bb);
+moonLight.distance = MOON_LIGHT_RADIUS * moonRadiusMultiplier;
             } else if (moonMesh) {
                 moonMesh.visible = false;
                 moonGlow.visible = false;
@@ -3713,9 +3755,28 @@ activeLightningBolts.push({
                 underworldMoonHalo.visible = displayedUMoonBrightness > 0.1;
                 underworldMoonHalo.material.opacity = combinedUMoonFactor * 0.5 * uMoonGlowFade;
                 
-                underworldMoonLight.position.copy(underworldMoonMesh.position);
-                underworldMoonLight.intensity = displayedUMoonBrightness > 0.2 ? (realisticLighting ? flickeredUMoonBrightness * 8 * combinedUMoonFactor : flickeredUMoonBrightness * 4 * combinedUMoonFactor) : 0;
-                underworldMoonLight.distance = UMOON_LIGHT_RADIUS;
+underworldMoonLight.position.copy(underworldMoonMesh.position);
+
+// Pulse BOTH intensity AND radius during flicker - reignition light blast
+let uMoonIntensityBoost = 1.0;
+let uMoonRadiusMultiplier = 1.0;
+if (uMoonFlickerActive) {
+    const flickerElapsed = Date.now() - uMoonFlickerStartTime;
+    const flickerProgress = flickerElapsed / UMOON_FLICKER_DURATION;
+    const flickerDecay = 1.0 - flickerProgress;
+    const flickerSpeed = 8 - (flickerDecay * 10);
+    const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
+    const sharpFlicker = Math.pow(flicker, 0.5); // Sharper peaks - bright flashes pop harder
+    
+    // Intensity spikes up to 8x during peaks - DRAMATIC
+    uMoonIntensityBoost = 1.0 + (sharpFlicker * flickerDecay * 7.0);
+    // Radius expands up to 2x during peaks
+    uMoonRadiusMultiplier = 1.0 + (sharpFlicker * flickerDecay * 1.0);
+}
+const baseUMoonIntensity = displayedUMoonBrightness > 0.2 ? (realisticLighting ? flickeredUMoonBrightness * 8 * combinedUMoonFactor : flickeredUMoonBrightness * 4 * combinedUMoonFactor) : 0;
+underworldMoonLight.intensity = baseUMoonIntensity * uMoonIntensityBoost;
+underworldMoonLight.distance = UMOON_LIGHT_RADIUS * uMoonRadiusMultiplier;
+underworldMoonLight.color.setHex(0x0033ff);
                 underworldMoonLight.color.setHex(0x0033ff);
             } else if (underworldMoonMesh) {
                 underworldMoonMesh.visible = false;
@@ -3744,9 +3805,28 @@ activeLightningBolts.push({
                 underworldSunHalo.position.copy(underworldSunMesh.position);
                 underworldSunHalo.visible = displayedUSunBrightness > 0.1;
                 underworldSunHalo.material.opacity = uSunBrightnessFactor * 0.3 * uSunGlowFade;
-                underworldSunLight.position.copy(underworldSunMesh.position);
-                underworldSunLight.intensity = displayedUSunBrightness > 0.2 ? (realisticLighting ? flickeredUSunBrightness * 3 : flickeredUSunBrightness) : 0;
-                underworldSunLight.distance = USUN_LIGHT_RADIUS;
+underworldSunLight.position.copy(underworldSunMesh.position);
+
+// Pulse BOTH intensity AND radius during flicker - reignition light blast
+let uSunIntensityBoost = 1.0;
+let uSunRadiusMultiplier = 1.0;
+if (uSunFlickerActive) {
+    const flickerElapsed = Date.now() - uSunFlickerStartTime;
+    const flickerProgress = flickerElapsed / USUN_FLICKER_DURATION;
+    const flickerDecay = 1.0 - flickerProgress;
+    const flickerSpeed = 9 - (flickerDecay * 11);
+    const flicker = Math.sin(flickerElapsed * flickerSpeed * 0.01) * 0.5 + 0.5;
+    const sharpFlicker = Math.pow(flicker, 0.5); // Sharper peaks - bright flashes pop harder
+    
+    // Intensity spikes up to 8x during peaks - DRAMATIC
+    uSunIntensityBoost = 1.0 + (sharpFlicker * flickerDecay * 7.0);
+    // Radius expands up to 2x during peaks
+    uSunRadiusMultiplier = 1.0 + (sharpFlicker * flickerDecay * 1.0);
+}
+
+const baseUSunIntensity = displayedUSunBrightness > 0.2 ? (realisticLighting ? flickeredUSunBrightness * 3 : flickeredUSunBrightness) : 0;
+underworldSunLight.intensity = baseUSunIntensity * uSunIntensityBoost;
+underworldSunLight.distance = USUN_LIGHT_RADIUS * uSunRadiusMultiplier;
                 
                 const uSunShellPoint = underworldSunMesh.position.clone().normalize().multiplyScalar(SHELL_RADIUS);
                 const uSunShellCoords = getShellCoordinates(uSunShellPoint);
