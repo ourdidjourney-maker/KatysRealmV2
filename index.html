@@ -2139,11 +2139,10 @@ function calculateUpperFimbulwinterIntensity() {
     if (!sunVisible) return 0;
    
     // Calculate sun weakness (0 = full power, 1 = completely dead)
+    // ONLY brightness matters - size is cosmetic only
     const sunBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - SUN_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
-    const sunSizeWeakness = Math.max(0, (FIMBULWINTER_SUN_SIZE_THRESHOLD - SUN_SIZE) / FIMBULWINTER_SUN_SIZE_THRESHOLD);
    
-    // Combined sun weakness (either being low triggers it)
-    let sunWeakness = Math.max(sunBrightnessWeakness, sunSizeWeakness);
+    let sunWeakness = sunBrightnessWeakness;  // FIXED: removed size check
    
     // Moon factor - ONLY check the slider brightness, NOT the interference position
     let moonPenalty = 0;
@@ -2162,10 +2161,10 @@ function calculateLowerFimbulwinterIntensity() {
     if (!underworldSunVisible) return 0;
    
     // Calculate underworld sun weakness
+    // ONLY brightness matters - size is cosmetic only
     const uSunBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - USUN_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
-    const uSunSizeWeakness = Math.max(0, (FIMBULWINTER_SUN_SIZE_THRESHOLD - USUN_SIZE) / FIMBULWINTER_SUN_SIZE_THRESHOLD);
    
-    let uSunWeakness = Math.max(uSunBrightnessWeakness, uSunSizeWeakness);
+    let uSunWeakness = uSunBrightnessWeakness;  // FIXED: removed size check
    
     // Underworld moon factor - ONLY check the slider brightness
     let uMoonPenalty = 0;
