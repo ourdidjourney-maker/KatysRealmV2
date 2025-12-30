@@ -285,6 +285,7 @@
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 500000);
         camera.position.set(12000, 7000, 12000);
         let originalFOV = 50, groundViewFOV = 90;
+        const MOVE_SPEED = 50;
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
@@ -2135,18 +2136,48 @@ function createUnderworldLuminaryLink() {
     // These calculate intensity based on sun/moon state - NO CAMERA CODE
 
 function calculateUpperFimbulwinterIntensity() {
+    // Skip if sun is hidden entirely (user toggle, not dying)
     if (!sunVisible) return 0;
+   
+    // Calculate sun weakness (0 = full power, 1 = completely dead)
+    // ONLY brightness matters - size is cosmetic only
     const sunBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - SUN_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
-    return sunBrightnessWeakness;
+   
+    let sunWeakness = sunBrightnessWeakness;  // FIXED: removed size check
+   
+    // Moon factor - ONLY check the slider brightness, NOT the interference position
+    let moonPenalty = 0;
+    if (moonVisible) {
+        // Moon contributes to cold ONLY if its brightness slider is low
+        const moonBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - MOON_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
+        moonPenalty = moonBrightnessWeakness * FIMBULWINTER_MOON_MULTIPLIER;
+    }
+   
+    // Final intensity: sun weakness + moon penalty, capped at 1
+    return Math.min(1, sunWeakness + moonPenalty);
 }
 
 function calculateLowerFimbulwinterIntensity() {
+    // INDEPENDENT SYSTEM - uses underworld sun/moon only
     if (!underworldSunVisible) return 0;
+   
+    // Calculate underworld sun weakness
+    // ONLY brightness matters - size is cosmetic only
     const uSunBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - USUN_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
-    return uSunBrightnessWeakness;
+   
+    let uSunWeakness = uSunBrightnessWeakness;  // FIXED: removed size check
+   
+    // Underworld moon factor - ONLY check the slider brightness
+    let uMoonPenalty = 0;
+    if (underworldMoonVisible) {
+        const uMoonBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - UMOON_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
+        uMoonPenalty = uMoonBrightnessWeakness * FIMBULWINTER_MOON_MULTIPLIER;
+    }
+   
+    return Math.min(1, uSunWeakness + uMoonPenalty);
 }
 
-function updateUpperFimbulwinter() {
+    function updateUpperFimbulwinter() {
     // Only build intensity when in upper ground-level views
 const inUpperGroundView = isGroundView && !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;   
     if (!inUpperGroundView) {
@@ -2777,15 +2808,12 @@ const rayB = 2 * startPos.dot(direction);
 const rayC = startPos.dot(startPos) - SHELL_RADIUS * SHELL_RADIUS;
 const discriminant = rayB * rayB - 4 * rayA * rayC;
     
-let shellT = Infinity;
-if (discriminant >= 0) {
-    const sqrtD = Math.sqrt(Math.max(0, discriminant));
-    const t1 = (-rayB + sqrtD) / 2;
-    const t2 = (-rayB - sqrtD) / 2;
-    // Use the positive t value (forward along ray)
-    if (t1 > 10) shellT = t1;
-    if (t2 > 10 && t2 < shellT) shellT = t2;
-}
+    let shellT = Infinity;
+    if (discriminant >= 0) {
+        const sqrtD = Math.sqrt(Math.max(0, discriminant));
+        const t1 = (-rayB + sqrtD) / 2;
+        const t2 = (-rayB - sqrtD) / 2;
+    }
     
     // Ray-plane intersection for strata surface
     const strataY = isUpperWorld ? (DISK_THICKNESS / 2) : -(DISK_THICKNESS / 2);
@@ -4072,6 +4100,9 @@ scene.add(diskWireframe);
         let isGroundToGroundTransition = false, previousGroundPosition = null;
         let transitionStartTime = 0, transitionDuration = 2000;
         let groundViewAngles = { pitch: 0, yaw: 0 };
+let upperMidPosition = { x: 0, z: 0 };
+let lowerMidPosition = { x: 0, z: 0 };
+let keysPressed = { w: false, a: false, s: false, d: false, shift: false };
         let savedOrbitView = { position: { x: 12000, y: 7000, z: 12000 }, rotation: { x: 0.3, y: 0.8 }, distance: 15000, target: { x: 0, y: 0, z: 0 } };
        
         function getGroundViewPosition() {
@@ -4108,12 +4139,12 @@ scene.add(diskWireframe);
             );
         }
        
-        function getMidViewPosition() {
-            const cameraHeight = 10;
-            const midRadius = DISK_RADIUS * 0.5; // Halfway between center and edge
-            let yPosition = isUnderworldView ? -DISK_THICKNESS / 2 - cameraHeight : DISK_THICKNESS / 2 + cameraHeight;
-            return { position: new THREE.Vector3(midRadius, yPosition, 0), rotation: { x: 0, y: 0 } };
-        }
+function getMidViewPosition() {
+    const cameraHeight = 10;
+    let yPosition = isUnderworldView ? -DISK_THICKNESS / 2 - cameraHeight : DISK_THICKNESS / 2 + cameraHeight;
+    const pos = isUnderworldView ? lowerMidPosition : upperMidPosition;
+    return { position: new THREE.Vector3(pos.x, yPosition, pos.z), rotation: { x: 0, y: 0 } };
+}
        
         function getMidViewLookTarget() {
             const midView = getMidViewPosition();
@@ -4141,11 +4172,10 @@ scene.add(diskWireframe);
     );
 }
 
-    function getUnderworldMidViewPosition() {
+function getUnderworldMidViewPosition() {
     const cameraHeight = 10;
-    const midRadius = DISK_RADIUS * 0.5;
     let yPosition = -DISK_THICKNESS / 2 - cameraHeight;
-    return { position: new THREE.Vector3(midRadius, yPosition, 0), rotation: { x: 0, y: 0 } };
+    return { position: new THREE.Vector3(lowerMidPosition.x, yPosition, lowerMidPosition.z), rotation: { x: 0, y: 0 } };
 }
 
     function getUnderworldMidViewLookTarget() {
@@ -4635,13 +4665,14 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
         });
 
        
-        document.getElementById('mid-view-button').addEventListener('click', () => {
-            const isCurrentlyMid = isGroundView && isMidView && !isUnderworldView;
-           
-            if (!isGroundView) {
-                savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
-                resetAllViewStates();
-                isMidView = true;
+document.getElementById('mid-view-button').addEventListener('click', () => {
+    const isCurrentlyMid = isGroundView && isMidView && !isUnderworldView;
+   
+    if (!isGroundView) {
+        savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
+        resetAllViewStates();
+        upperMidPosition = { x: DISK_RADIUS * 0.5, z: 0 };
+        isMidView = true;
                 groundViewAngles = { pitch: 0.1, yaw: 0 };
                 camera.fov = groundViewFOV;
                 camera.updateProjectionMatrix();
@@ -4701,14 +4732,15 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
                 exitToOrbit();
             }
         });
-        document.getElementById('underworld-mid-view-button').addEventListener('click', () => {
-            const isCurrentlyUnderworldMid = isGroundView && isUnderworldMidView;
-           
-            if (!isGroundView) {
-                savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
-                resetAllViewStates();
-                isUnderworldView = true;
-                isUnderworldMidView = true;
+document.getElementById('underworld-mid-view-button').addEventListener('click', () => {
+    const isCurrentlyUnderworldMid = isGroundView && isUnderworldMidView;
+   
+    if (!isGroundView) {
+        savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
+        resetAllViewStates();
+        lowerMidPosition = { x: DISK_RADIUS * 0.5, z: 0 };
+        isUnderworldView = true;
+        isUnderworldMidView = true;
                 groundViewAngles = { pitch: -0.1, yaw: 0 };
                 camera.fov = groundViewFOV;
                 camera.updateProjectionMatrix();
@@ -4983,8 +5015,67 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             stopAllMeteors();
             createGeometry(); createStarfield(); createSunAndMoon();
         });
+        
+        function updateMidplaneMovement() {
+    if (!isGroundView || (!isMidView && !isUnderworldMidView)) return;
+    if (cameraTransitioning) return;
+    
+    const speed = keysPressed.shift ? MOVE_SPEED * 3 : MOVE_SPEED;
+    const pos = isUnderworldMidView ? lowerMidPosition : upperMidPosition;
+    
+    // Calculate forward and right vectors based on yaw
+    const forwardX = Math.sin(groundViewAngles.yaw);
+    const forwardZ = Math.cos(groundViewAngles.yaw);
+const rightX = -Math.cos(groundViewAngles.yaw);
+const rightZ = Math.sin(groundViewAngles.yaw);
+    
+    // Apply movement
+    if (keysPressed.w) {
+        pos.x += forwardX * speed;
+        pos.z += forwardZ * speed;
+    }
+    if (keysPressed.s) {
+        pos.x -= forwardX * speed;
+        pos.z -= forwardZ * speed;
+    }
+    if (keysPressed.a) {
+        pos.x -= rightX * speed;
+        pos.z -= rightZ * speed;
+    }
+    if (keysPressed.d) {
+        pos.x += rightX * speed;
+        pos.z += rightZ * speed;
+    }
+    
+    // Clamp to disk radius (can't walk off the edge)
+    const distFromCenter = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+    if (distFromCenter > DISK_RADIUS - 100) {
+        const scale = (DISK_RADIUS - 100) / distFromCenter;
+        pos.x *= scale;
+        pos.z *= scale;
+    }
+}
        
         let clickStartPos = { x: 0, y: 0 }, clickMoved = false;
+        
+        // Keyboard controls for midplane movement
+document.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    if (key === 'w') keysPressed.w = true;
+    if (key === 'a') keysPressed.a = true;
+    if (key === 's') keysPressed.s = true;
+    if (key === 'd') keysPressed.d = true;
+    if (key === 'shift' || e.shiftKey) keysPressed.shift = true;
+});
+
+document.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase();
+    if (key === 'w') keysPressed.w = false;
+    if (key === 'a') keysPressed.a = false;
+    if (key === 's') keysPressed.s = false;
+    if (key === 'd') keysPressed.d = false;
+    if (key === 'shift' || e.key === 'Shift') keysPressed.shift = false;
+});
        
         renderer.domElement.addEventListener('mousedown', (e) => {
             clickStartPos = { x: e.clientX, y: e.clientY };
@@ -5074,9 +5165,10 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             const elapsedTime = (Date.now() - startTime) * 0.001;
             if (!window.fpsFrames) { window.fpsFrames = 0; window.fpsTime = Date.now(); } window.fpsFrames++; if (Date.now() - window.fpsTime >= 1000) { document.getElementById('fps-counter').textContent = window.fpsFrames + ' FPS'; window.fpsFrames = 0; window.fpsTime = Date.now(); }
             if (starfieldMaterial) starfieldMaterial.uniforms.uTime.value = elapsedTime;
-            updateMeteorSystem();
-            updateGulfRipple(elapsedTime);
-            updateSunAndMoon(elapsedTime);
+updateMeteorSystem();
+updateGulfRipple(elapsedTime);
+updateSunAndMoon(elapsedTime);
+updateMidplaneMovement();
             if (cameraTransitioning) {
                 const progress = Math.min((Date.now() - transitionStartTime) / transitionDuration, 1.0);
                 const eased = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
@@ -5263,4 +5355,3 @@ if (source.type === 'sun') {
     </script>
 </body>
 </html>
-
