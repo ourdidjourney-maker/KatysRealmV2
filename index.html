@@ -2778,12 +2778,15 @@ const rayB = 2 * startPos.dot(direction);
 const rayC = startPos.dot(startPos) - SHELL_RADIUS * SHELL_RADIUS;
 const discriminant = rayB * rayB - 4 * rayA * rayC;
     
-    let shellT = Infinity;
-    if (discriminant >= 0) {
-        const sqrtD = Math.sqrt(Math.max(0, discriminant));
-        const t1 = (-rayB + sqrtD) / 2;
-        const t2 = (-rayB - sqrtD) / 2;
-    }
+let shellT = Infinity;
+if (discriminant >= 0) {
+    const sqrtD = Math.sqrt(Math.max(0, discriminant));
+    const t1 = (-rayB + sqrtD) / 2;
+    const t2 = (-rayB - sqrtD) / 2;
+    // Use the positive t value (forward along ray)
+    if (t1 > 10) shellT = t1;
+    if (t2 > 10 && t2 < shellT) shellT = t2;
+}
     
     // Ray-plane intersection for strata surface
     const strataY = isUpperWorld ? (DISK_THICKNESS / 2) : -(DISK_THICKNESS / 2);
