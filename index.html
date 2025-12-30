@@ -2135,48 +2135,18 @@ function createUnderworldLuminaryLink() {
     // These calculate intensity based on sun/moon state - NO CAMERA CODE
 
 function calculateUpperFimbulwinterIntensity() {
-    // Skip if sun is hidden entirely (user toggle, not dying)
     if (!sunVisible) return 0;
-   
-    // Calculate sun weakness (0 = full power, 1 = completely dead)
-    // ONLY brightness matters - size is cosmetic only
     const sunBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - SUN_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
-   
-    let sunWeakness = sunBrightnessWeakness;  // FIXED: removed size check
-   
-    // Moon factor - ONLY check the slider brightness, NOT the interference position
-    let moonPenalty = 0;
-    if (moonVisible) {
-        // Moon contributes to cold ONLY if its brightness slider is low
-        const moonBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - MOON_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
-        moonPenalty = moonBrightnessWeakness * FIMBULWINTER_MOON_MULTIPLIER;
-    }
-   
-    // Final intensity: sun weakness + moon penalty, capped at 1
-    return Math.min(1, sunWeakness + moonPenalty);
+    return sunBrightnessWeakness;
 }
 
 function calculateLowerFimbulwinterIntensity() {
-    // INDEPENDENT SYSTEM - uses underworld sun/moon only
     if (!underworldSunVisible) return 0;
-   
-    // Calculate underworld sun weakness
-    // ONLY brightness matters - size is cosmetic only
     const uSunBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - USUN_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
-   
-    let uSunWeakness = uSunBrightnessWeakness;  // FIXED: removed size check
-   
-    // Underworld moon factor - ONLY check the slider brightness
-    let uMoonPenalty = 0;
-    if (underworldMoonVisible) {
-        const uMoonBrightnessWeakness = Math.max(0, (FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD - UMOON_BRIGHTNESS) / FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD);
-        uMoonPenalty = uMoonBrightnessWeakness * FIMBULWINTER_MOON_MULTIPLIER;
-    }
-   
-    return Math.min(1, uSunWeakness + uMoonPenalty);
+    return uSunBrightnessWeakness;
 }
 
-    function updateUpperFimbulwinter() {
+function updateUpperFimbulwinter() {
     // Only build intensity when in upper ground-level views
 const inUpperGroundView = isGroundView && !isUnderworldView && !isUnderworldEdgeView && !isUnderworldMidView && !isUSunView && !isUMoonView;   
     if (!inUpperGroundView) {
@@ -2807,12 +2777,15 @@ const rayB = 2 * startPos.dot(direction);
 const rayC = startPos.dot(startPos) - SHELL_RADIUS * SHELL_RADIUS;
 const discriminant = rayB * rayB - 4 * rayA * rayC;
     
-    let shellT = Infinity;
-    if (discriminant >= 0) {
-        const sqrtD = Math.sqrt(Math.max(0, discriminant));
-        const t1 = (-rayB + sqrtD) / 2;
-        const t2 = (-rayB - sqrtD) / 2;
-    }
+let shellT = Infinity;
+if (discriminant >= 0) {
+    const sqrtD = Math.sqrt(Math.max(0, discriminant));
+    const t1 = (-rayB + sqrtD) / 2;
+    const t2 = (-rayB - sqrtD) / 2;
+    // Use the positive t value (forward along ray)
+    if (t1 > 10) shellT = t1;
+    if (t2 > 10 && t2 < shellT) shellT = t2;
+}
     
     // Ray-plane intersection for strata surface
     const strataY = isUpperWorld ? (DISK_THICKNESS / 2) : -(DISK_THICKNESS / 2);
@@ -5290,3 +5263,4 @@ if (source.type === 'sun') {
     </script>
 </body>
 </html>
+
