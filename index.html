@@ -1934,8 +1934,8 @@ function createStrataHoverMesh() {
        
         const tooltip = document.getElementById('grid-tooltip');
         tooltip.style.display = 'block';
-        tooltip.style.left = (event.clientX + 15) + 'px';
-        tooltip.style.top = (event.clientY + 15) + 'px';
+tooltip.style.left = (event.clientX + 15) + 'px';
+tooltip.style.top = (event.clientY - 100) + 'px';
         tooltip.style.borderColor = coords.color;
        
         document.getElementById('tooltip-hemisphere').textContent = coords.hemisphere + ' HEMISPHERE';
@@ -1970,8 +1970,8 @@ function createStrataHoverMesh() {
        
         const tooltip = document.getElementById('strata-tooltip');
         tooltip.style.display = 'block';
-        tooltip.style.left = (event.clientX + 15) + 'px';
-        tooltip.style.top = (event.clientY + 15) + 'px';
+tooltip.style.left = (event.clientX + 15) + 'px';
+tooltip.style.top = (event.clientY + 80) + 'px';
         tooltip.style.borderColor = coords.color;
        
         document.getElementById('strata-tooltip-surface').textContent = coords.surface + ' SURFACE';
