@@ -171,6 +171,13 @@
 <ul>
     <li>Distance: <span class="highlight" id="underworld-luminary-distance-info">0 mi</span></li>
 </ul>
+<h2 style="color: #00ddaa;">Camera Position</h2>
+<ul>
+    <li>View: <span class="highlight" id="camera-view-info">Orbit</span></li>
+    <li>Altitude: <span class="highlight" id="camera-altitude-info">--</span></li>
+    <li style="color: #ffdd44;">Shell: <span class="highlight" id="camera-shell-coords">--</span></li>
+    <li style="color: #44ffaa;">Strata: <span class="highlight" id="camera-strata-coords">--</span></li>
+</ul>
 <h2>Star Axis Tilt</h2>
         <ul>
             <li>X: <span class="highlight" id="axis-x-info">0</span></li>
@@ -4045,6 +4052,56 @@ scene.add(diskWireframe);
                 document.getElementById('axis-z-info').textContent = (starAxisPivot.rotation.z * toDeg).toFixed(1);
             }
         }
+        
+        function updateCameraInfo() {
+    // Determine current view name
+    let viewName = 'Orbit';
+    if (isGroundView) {
+        if (isSunView) viewName = 'Upper Sun';
+        else if (isMoonView) viewName = 'Upper Moon';
+        else if (isUSunView) viewName = 'Underworld Sun';
+        else if (isUMoonView) viewName = 'Underworld Moon';
+        else if (isEdgeView) viewName = 'Upper Edge';
+        else if (isUnderworldEdgeView) viewName = 'Underworld Edge';
+        else if (isMidView) viewName = 'Upper Midplane';
+        else if (isUnderworldMidView) viewName = 'Underworld Midplane';
+        else if (isUnderworldView) viewName = 'Underworld Ground';
+        else viewName = 'Upper Ground';
+    }
+    document.getElementById('camera-view-info').textContent = viewName;
+    
+    // Get camera position
+    const camPos = camera.position.clone();
+    
+    // Calculate altitude from nearest surface
+    let altitude;
+    if (camPos.y >= 0) {
+        // Above midplane - altitude from upper surface
+        altitude = camPos.y - DISK_THICKNESS / 2;
+    } else {
+        // Below midplane - altitude from lower surface (positive value)
+        altitude = Math.abs(camPos.y) - DISK_THICKNESS / 2;
+    }
+    
+    if (isGroundView) {
+        document.getElementById('camera-altitude-info').textContent = Math.round(Math.max(0, altitude)).toLocaleString() + ' mi';
+    } else {
+        // In orbit view, show distance from center instead
+        const distFromCenter = camPos.length();
+        document.getElementById('camera-altitude-info').textContent = Math.round(distFromCenter).toLocaleString() + ' mi (from center)';
+    }
+    
+    // Shell coordinates - project camera onto shell
+    const camShellPoint = camPos.clone().normalize().multiplyScalar(SHELL_RADIUS);
+    const camShellCoords = getShellCoordinates(camShellPoint);
+    document.getElementById('camera-shell-coords').textContent = 
+        `${camShellCoords.quadrant} X:${camShellCoords.x.toLocaleString()} Y:${camShellCoords.y.toLocaleString()} ${camShellCoords.zSymbol}:${camShellCoords.z.toLocaleString()}`;
+    
+    // Strata coordinates - camera position relative to disk
+    const camStrataCoords = getStrataCoordinates(camPos);
+    document.getElementById('camera-strata-coords').textContent = 
+        `${camStrataCoords.quadrant} X:${camStrataCoords.x.toLocaleString()} Y:${camStrataCoords.y.toLocaleString()} Dist:${camStrataCoords.distFromCenter.toLocaleString()}`;
+}
     initEdgeColdSystem();  
     initFimbulwinterFrost();
     initLensFlare();
@@ -5345,6 +5402,7 @@ if (source.type === 'sun') {
                 camera.position.z += (Math.random() - 0.5) * activeShiver;
             }
             
+            updateCameraInfo();
             renderer.render(scene, camera);
         }
        
