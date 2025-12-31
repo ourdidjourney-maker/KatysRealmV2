@@ -4989,7 +4989,7 @@ document.getElementById('underworld-mid-view-button').addEventListener('click', 
             createGeometry(); createStarfield(); createSunAndMoon();
         });
         
-function updateMidplaneMovement() {
+        function updateMidplaneMovement() {
     if (!isGroundView || (!isMidView && !isUnderworldMidView)) return;
     if (cameraTransitioning) return;
     
@@ -4999,11 +4999,8 @@ function updateMidplaneMovement() {
     // Calculate forward and right vectors based on yaw
     const forwardX = Math.sin(groundViewAngles.yaw);
     const forwardZ = Math.cos(groundViewAngles.yaw);
-    
-    // A/D reversal in underworld - invert lateral movement
-    const inversion = isUnderworldMidView ? -1 : 1;
-    const rightX = inversion * -Math.cos(groundViewAngles.yaw);
-    const rightZ = inversion * Math.sin(groundViewAngles.yaw);
+const rightX = -Math.cos(groundViewAngles.yaw);
+const rightZ = Math.sin(groundViewAngles.yaw);
     
     // Apply movement
     if (keysPressed.w) {
@@ -5015,15 +5012,15 @@ function updateMidplaneMovement() {
         pos.z -= forwardZ * speed;
     }
     if (keysPressed.a) {
-        pos.x -= rightX * speed;  // Note: A now uses positive right (feels natural)
-        pos.z += rightZ * speed;
-    }
-    if (keysPressed.d) {
-        pos.x += rightX * speed;  // D opposite
+        pos.x -= rightX * speed;
         pos.z -= rightZ * speed;
     }
+    if (keysPressed.d) {
+        pos.x += rightX * speed;
+        pos.z += rightZ * speed;
+    }
     
-    // Clamp to disk radius
+    // Clamp to disk radius (can't walk off the edge)
     const distFromCenter = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
     if (distFromCenter > DISK_RADIUS - 100) {
         const scale = (DISK_RADIUS - 100) / distFromCenter;
