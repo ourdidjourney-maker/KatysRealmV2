@@ -4073,9 +4073,9 @@ scene.add(diskWireframe);
         let isGroundToGroundTransition = false, previousGroundPosition = null;
         let transitionStartTime = 0, transitionDuration = 2000;
         let groundViewAngles = { pitch: 0, yaw: 0 };
-let upperMidPosition = { x: 0, z: 0 };
-let lowerMidPosition = { x: 0, z: 0 };
-let keysPressed = { w: false, a: false, s: false, d: false, shift: false };
+let upperMidPosition = { x: 0, z: 0, altitude: 10 };
+let lowerMidPosition = { x: 0, z: 0, altitude: 10 };
+let keysPressed = { w: false, a: false, s: false, d: false, q: false, e: false, r: false, shift: false };
         let savedOrbitView = { position: { x: 12000, y: 7000, z: 12000 }, rotation: { x: 0.3, y: 0.8 }, distance: 15000, target: { x: 0, y: 0, z: 0 } };
        
         function getGroundViewPosition() {
@@ -4113,9 +4113,15 @@ let keysPressed = { w: false, a: false, s: false, d: false, shift: false };
         }
        
 function getMidViewPosition() {
-    const cameraHeight = 10;
-    let yPosition = isUnderworldView ? -DISK_THICKNESS / 2 - cameraHeight : DISK_THICKNESS / 2 + cameraHeight;
     const pos = isUnderworldView ? lowerMidPosition : upperMidPosition;
+    let yPosition;
+    if (isUnderworldView) {
+        // Underworld: y goes from -DISK_THICKNESS/2 (surface) down toward 0 (midplane)
+        yPosition = -DISK_THICKNESS / 2 - pos.altitude;
+    } else {
+        // Upper: y goes from DISK_THICKNESS/2 (surface) up toward sky
+        yPosition = DISK_THICKNESS / 2 + pos.altitude;
+    }
     return { position: new THREE.Vector3(pos.x, yPosition, pos.z), rotation: { x: 0, y: 0 } };
 }
        
@@ -4146,8 +4152,7 @@ function getMidViewPosition() {
 }
 
 function getUnderworldMidViewPosition() {
-    const cameraHeight = 10;
-    let yPosition = -DISK_THICKNESS / 2 - cameraHeight;
+    let yPosition = -DISK_THICKNESS / 2 - lowerMidPosition.altitude;
     return { position: new THREE.Vector3(lowerMidPosition.x, yPosition, lowerMidPosition.z), rotation: { x: 0, y: 0 } };
 }
 
@@ -4644,7 +4649,7 @@ document.getElementById('mid-view-button').addEventListener('click', () => {
     if (!isGroundView) {
         savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
         resetAllViewStates();
-        upperMidPosition = { x: DISK_RADIUS * 0.5, z: 0 };
+        upperMidPosition = { x: DISK_RADIUS * 0.5, z: 0, altitude: 10 };
         isMidView = true;
                 groundViewAngles = { pitch: 0.1, yaw: 0 };
                 camera.fov = groundViewFOV;
@@ -4711,7 +4716,7 @@ document.getElementById('underworld-mid-view-button').addEventListener('click', 
     if (!isGroundView) {
         savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
         resetAllViewStates();
-        lowerMidPosition = { x: DISK_RADIUS * 0.5, z: 0 };
+        lowerMidPosition = { x: DISK_RADIUS * 0.5, z: 0, altitude: 10 };
         isUnderworldView = true;
         isUnderworldMidView = true;
                 groundViewAngles = { pitch: -0.1, yaw: 0 };
@@ -4989,7 +4994,7 @@ document.getElementById('underworld-mid-view-button').addEventListener('click', 
             createGeometry(); createStarfield(); createSunAndMoon();
         });
         
-        function updateMidplaneMovement() {
+function updateMidplaneMovement() {
     if (!isGroundView || (!isMidView && !isUnderworldMidView)) return;
     if (cameraTransitioning) return;
     
@@ -4999,8 +5004,8 @@ document.getElementById('underworld-mid-view-button').addEventListener('click', 
     // Calculate forward and right vectors based on yaw
     const forwardX = Math.sin(groundViewAngles.yaw);
     const forwardZ = Math.cos(groundViewAngles.yaw);
-const rightX = -Math.cos(groundViewAngles.yaw);
-const rightZ = Math.sin(groundViewAngles.yaw);
+    const rightX = Math.cos(groundViewAngles.yaw);
+    const rightZ = -Math.sin(groundViewAngles.yaw);
     
     // Apply movement
     if (keysPressed.w) {
@@ -5011,13 +5016,31 @@ const rightZ = Math.sin(groundViewAngles.yaw);
         pos.x -= forwardX * speed;
         pos.z -= forwardZ * speed;
     }
+    // Invert left/right for underworld (camera up is inverted)
+    const rightMultiplier = isUnderworldMidView ? -1 : 1;
+    
     if (keysPressed.a) {
-        pos.x -= rightX * speed;
-        pos.z -= rightZ * speed;
+        pos.x += rightX * speed * rightMultiplier;
+        pos.z += rightZ * speed * rightMultiplier;
     }
     if (keysPressed.d) {
-        pos.x += rightX * speed;
-        pos.z += rightZ * speed;
+        pos.x -= rightX * speed * rightMultiplier;
+        pos.z -= rightZ * speed * rightMultiplier;
+    }
+    
+    // Altitude controls - Q to rise, E to descend
+    // Upper realm: can go from surface (10) up to sky height (SHELL_RADIUS - DISK_THICKNESS/2)
+    // Underworld: can go from surface (10) down toward midplane but NOT crossing it
+    const minAltitude = 10; // Just above surface
+    const maxAltitude = SHELL_RADIUS - DISK_THICKNESS / 2 - 100; // Near the shell but not touching
+    
+    if (keysPressed.q) {
+        // Rise (increase altitude in both realms)
+        pos.altitude = Math.min(maxAltitude, pos.altitude + speed);
+    }
+    if (keysPressed.e) {
+        // Descend (decrease altitude, but not below surface)
+        pos.altitude = Math.max(minAltitude, pos.altitude - speed);
     }
     
     // Clamp to disk radius (can't walk off the edge)
@@ -5026,6 +5049,16 @@ const rightZ = Math.sin(groundViewAngles.yaw);
         const scale = (DISK_RADIUS - 100) / distFromCenter;
         pos.x *= scale;
         pos.z *= scale;
+    }
+    
+    // R key - Reset to default midplane position
+    if (keysPressed.r) {
+        pos.x = DISK_RADIUS * 0.5;
+        pos.z = 0;
+        pos.altitude = 10;
+        groundViewAngles.pitch = isUnderworldMidView ? -0.1 : 0.1;
+        groundViewAngles.yaw = 0;
+        keysPressed.r = false; // Prevent continuous reset while held
     }
 }
        
@@ -5038,6 +5071,9 @@ document.addEventListener('keydown', (e) => {
     if (key === 'a') keysPressed.a = true;
     if (key === 's') keysPressed.s = true;
     if (key === 'd') keysPressed.d = true;
+    if (key === 'q') keysPressed.q = true;
+    if (key === 'e') keysPressed.e = true;
+    if (key === 'r') keysPressed.r = true;
     if (key === 'shift' || e.shiftKey) keysPressed.shift = true;
 });
 
@@ -5047,6 +5083,9 @@ document.addEventListener('keyup', (e) => {
     if (key === 'a') keysPressed.a = false;
     if (key === 's') keysPressed.s = false;
     if (key === 'd') keysPressed.d = false;
+    if (key === 'q') keysPressed.q = false;
+    if (key === 'e') keysPressed.e = false;
+    if (key === 'r') keysPressed.r = false;
     if (key === 'shift' || e.key === 'Shift') keysPressed.shift = false;
 });
        
