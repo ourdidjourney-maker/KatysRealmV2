@@ -4714,38 +4714,38 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
        
     document.getElementById('mid-view-button').addEventListener('click', () => {
     const isCurrentlyMid = isGroundView && isMidView && !isUnderworldView;
-   
     if (!isGroundView) {
         savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
         resetAllViewStates();
         upperMidPosition = { x: DISK_RADIUS * 0.5, z: 0, altitude: 10 };
         isMidView = true;
-                groundViewAngles = { pitch: 0.1, yaw: 0 };
-                camera.fov = groundViewFOV;
-                camera.updateProjectionMatrix();
-                isGroundView = true;
-                cameraTransitioning = true;
-                transitionStartTime = Date.now();
-                document.getElementById('mid-view-button').textContent = 'Exit Upper Realm Mid Plane View';
-                document.getElementById('mid-view-button').classList.add('active');
-            } else if (!isCurrentlyMid) {
-                previousGroundPosition = getCurrentViewPosition();
-                resetAllViewStates();
-                isUnderworldView = false;
-                isMidView = true;
-                groundViewAngles = { pitch: 0.1, yaw: 0 };
-                camera.fov = groundViewFOV;
-                camera.updateProjectionMatrix();
-                isGroundView = true;
-                isGroundToGroundTransition = true;
-                cameraTransitioning = true;
-                transitionStartTime = Date.now();
-                document.getElementById('mid-view-button').textContent = 'Exit Upper Mid Plane View';
-                document.getElementById('mid-view-button').classList.add('active');
-            } else {
-                exitToOrbit();
-            }
-        });
+        groundViewAngles = { pitch: 0.1, yaw: 0 };
+        camera.fov = groundViewFOV;
+        camera.updateProjectionMatrix();
+        isGroundView = true;
+        cameraTransitioning = true;
+        transitionStartTime = Date.now();
+        document.getElementById('mid-view-button').textContent = 'Exit Upper Realm Mid Plane View';
+        document.getElementById('mid-view-button').classList.add('active');
+    } else if (!isCurrentlyMid) {
+        previousGroundPosition = getCurrentViewPosition();
+        resetAllViewStates();
+        upperMidPosition = { x: DISK_RADIUS * 0.5, z: 0, altitude: 10 };  // Add this line to reset position
+        isUnderworldView = false;
+        isMidView = true;
+        groundViewAngles = { pitch: 0.1, yaw: 0 };
+        camera.fov = groundViewFOV;
+        camera.updateProjectionMatrix();
+        isGroundView = true;
+        isGroundToGroundTransition = true;
+        cameraTransitioning = true;
+        transitionStartTime = Date.now();
+        document.getElementById('mid-view-button').textContent = 'Exit Upper Mid Plane View';
+        document.getElementById('mid-view-button').classList.add('active');
+    } else {
+        exitToOrbit();
+    }
+});
         document.getElementById('underworld-edge-view-button').addEventListener('click', () => {
             const isCurrentlyUnderworldEdge = isGroundView && isUnderworldEdgeView;
            
@@ -4781,36 +4781,36 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
         });
     document.getElementById('underworld-mid-view-button').addEventListener('click', () => {
     const isCurrentlyUnderworldMid = isGroundView && isUnderworldMidView;
-   
     if (!isGroundView) {
         savedOrbitView = { position: { x: camera.position.x, y: camera.position.y, z: camera.position.z }, rotation: { x: cameraRotation.x, y: cameraRotation.y }, distance: cameraDistance, target: { x: cameraTarget.x, y: cameraTarget.y, z: cameraTarget.z } };
         resetAllViewStates();
         lowerMidPosition = { x: DISK_RADIUS * 0.5, z: 0, altitude: 10 };
         isUnderworldView = true;
         isUnderworldMidView = true;
-                groundViewAngles = { pitch: -0.1, yaw: 0 };
-                camera.fov = groundViewFOV;
-                camera.updateProjectionMatrix();
-                isGroundView = true;
-                cameraTransitioning = true;
-                transitionStartTime = Date.now();
-                document.getElementById('underworld-mid-view-button').textContent = 'Exit Underworld Mid Plane view';
-                document.getElementById('underworld-mid-view-button').classList.add('active');
-            } else if (!isCurrentlyUnderworldMid) {
-                previousGroundPosition = getCurrentViewPosition();
-                resetAllViewStates();
-                isUnderworldView = true;
-                isUnderworldMidView = true;
-                groundViewAngles = { pitch: -0.1, yaw: 0 };
-                isGroundToGroundTransition = true;
-                cameraTransitioning = true;
-                transitionStartTime = Date.now();
-                document.getElementById('underworld-mid-view-button').textContent = 'Exit Underworld Mid';
-                document.getElementById('underworld-mid-view-button').classList.add('active');
-            } else {
-                exitToOrbit();
-            }
-        });
+        groundViewAngles = { pitch: -0.1, yaw: 0 };
+        camera.fov = groundViewFOV;
+        camera.updateProjectionMatrix();
+        isGroundView = true;
+        cameraTransitioning = true;
+        transitionStartTime = Date.now();
+        document.getElementById('underworld-mid-view-button').textContent = 'Exit Underworld Mid Plane view';
+        document.getElementById('underworld-mid-view-button').classList.add('active');
+    } else if (!isCurrentlyUnderworldMid) {
+        previousGroundPosition = getCurrentViewPosition();
+        resetAllViewStates();
+        lowerMidPosition = { x: DISK_RADIUS * 0.5, z: 0, altitude: 10 };  // Add this line to reset position
+        isUnderworldView = true;
+        isUnderworldMidView = true;
+        groundViewAngles = { pitch: -0.1, yaw: 0 };
+        isGroundToGroundTransition = true;
+        cameraTransitioning = true;
+        transitionStartTime = Date.now();
+        document.getElementById('underworld-mid-view-button').textContent = 'Exit Underworld Mid';
+        document.getElementById('underworld-mid-view-button').classList.add('active');
+    } else {
+        exitToOrbit();
+    }
+});
         document.getElementById('sun-view-button').addEventListener('click', () => {
             if (!isSunView) {
                 if (!isGroundView) {
@@ -5437,3 +5437,4 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
     </script>
 </body>
 </html>
+
