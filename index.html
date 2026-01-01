@@ -346,6 +346,25 @@ let USUN_BRIGHTNESS = 1.5, UMOON_BRIGHTNESS = 0.8;
 let USUN_LIGHT_RADIUS = 8000, UMOON_LIGHT_RADIUS = 6000;
 let UMOON_INTERFERENCE_DURATION = 0.12;
 let underworldMoonInterferenceEnabled = true;
+// Lower Hemisphere CO2 Fallout System
+let lowerCO2Particles = [];
+let lowerCO2Geometry, lowerCO2Material, lowerCO2Points;
+const LOWER_CO2_MAX_PARTICLES = 2000;
+let lowerCO2TargetOpacity = 0;
+let lowerCO2CurrentOpacity = 0;
+const CO2_FADE_SPEED = 0.001;
+const CO2_SPAWN_RATE = 8.0;
+const CO2_FALLOUT_DURATION = 600000; // 10 minutes - complete atmos collapse
+let lowerCO2StartTime = 0;
+let lowerCO2Exhausted = false;
+let upperCO2StartTime = 0;
+let upperCO2Exhausted = false;
+// Upper Hemisphere CO2 Fallout System
+let upperCO2Particles = [];
+let upperCO2Geometry, upperCO2Material, upperCO2Points;
+const UPPER_CO2_MAX_PARTICLES = 2000;
+let upperCO2TargetOpacity = 0;
+let upperCO2CurrentOpacity = 0;
 
 // Displayed brightness values (smoothly interpolate toward slider values)
 let displayedSunBrightness = 1.5;
@@ -929,6 +948,7 @@ let lensFlareEnabled = true;
                 color: 0xffdd44
             });
             sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+            sunMesh.renderOrder = 50;
             scene.add(sunMesh);
            
             // Sun glow sprite - inner bright glow
@@ -941,6 +961,7 @@ let lensFlareEnabled = true;
             });
             sunGlow = new THREE.Sprite(sunGlowMaterial);
             sunGlow.scale.set(SUN_SIZE * 10, SUN_SIZE * 10, 1);
+            sunGlow.renderOrder = 51;
             scene.add(sunGlow);
            
             // Sun outer halo - softer, larger
@@ -954,6 +975,7 @@ let lensFlareEnabled = true;
             });
             sunHalo = new THREE.Sprite(sunHaloMaterial);
             sunHalo.scale.set(SUN_SIZE * 18, SUN_SIZE * 18, 1);
+            sunHalo.renderOrder = 52;
             scene.add(sunHalo);
            
             // Sun light
@@ -966,7 +988,8 @@ let lensFlareEnabled = true;
             const moonMaterial = new THREE.MeshBasicMaterial({
                 color: 0xeeeeff  // Bright pearl white with hint of blue
             });
-            moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+             moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+            moonMesh.renderOrder = 50;
             scene.add(moonMesh);
            
             // Moon inner glow sprite - strong blue-violet bloom
@@ -978,8 +1001,9 @@ let lensFlareEnabled = true;
                 depthWrite: false,
                 opacity: 0.8
             });
-            moonGlow = new THREE.Sprite(moonGlowMaterial);
+             moonGlow = new THREE.Sprite(moonGlowMaterial);
             moonGlow.scale.set(MOON_SIZE * 10, MOON_SIZE * 10, 1);
+            moonGlow.renderOrder = 51;
             scene.add(moonGlow);
            
             // Moon outer halo - deep blue corona
@@ -993,6 +1017,7 @@ let lensFlareEnabled = true;
             });
             moonHalo = new THREE.Sprite(moonHaloMaterial);
             moonHalo.scale.set(MOON_SIZE * 16, MOON_SIZE * 16, 1);
+            moonHalo.renderOrder = 52;
             scene.add(moonHalo);
            
             // Moon light - strong blue moonlight to overpower white
@@ -1037,7 +1062,8 @@ let lensFlareEnabled = true;
             // Create Underworld Sun - BLOOD RED
             const uSunGeometry = new THREE.SphereGeometry(USUN_SIZE, 32, 32);
             const uSunMaterial = new THREE.MeshBasicMaterial({ color: 0xff2222 });
-            underworldSunMesh = new THREE.Mesh(uSunGeometry, uSunMaterial);
+             underworldSunMesh = new THREE.Mesh(uSunGeometry, uSunMaterial);
+            underworldSunMesh.renderOrder = 50;
             scene.add(underworldSunMesh);
            
             // Underworld Sun glow - deep red
@@ -1050,6 +1076,7 @@ let lensFlareEnabled = true;
             });
             underworldSunGlow = new THREE.Sprite(uSunGlowMaterial);
             underworldSunGlow.scale.set(USUN_SIZE * 10, USUN_SIZE * 10, 1);
+            underworldSunGlow.renderOrder = 51;
             scene.add(underworldSunGlow);
            
             // Underworld Sun halo - darker red corona
@@ -1063,6 +1090,7 @@ let lensFlareEnabled = true;
             });
             underworldSunHalo = new THREE.Sprite(uSunHaloMaterial);
             underworldSunHalo.scale.set(USUN_SIZE * 18, USUN_SIZE * 18, 1);
+            underworldSunHalo.renderOrder = 52;
             scene.add(underworldSunHalo);
            
             // Underworld Sun light - red light
@@ -1074,6 +1102,7 @@ let lensFlareEnabled = true;
             const uMoonGeometry = new THREE.SphereGeometry(UMOON_SIZE, 32, 32);
             const uMoonMaterial = new THREE.MeshBasicMaterial({ color: 0x2233aa });
             underworldMoonMesh = new THREE.Mesh(uMoonGeometry, uMoonMaterial);
+            underworldMoonMesh.renderOrder = 50;
             scene.add(underworldMoonMesh);
            
             // Underworld Moon glow - deep indigo
@@ -1087,6 +1116,7 @@ let lensFlareEnabled = true;
             });
             underworldMoonGlow = new THREE.Sprite(uMoonGlowMaterial);
             underworldMoonGlow.scale.set(MOON_SIZE * 10, MOON_SIZE * 10, 1);
+            underworldMoonGlow.renderOrder = 51;
             scene.add(underworldMoonGlow);
            
             // Underworld Moon halo - dark violet corona
@@ -1100,8 +1130,8 @@ let lensFlareEnabled = true;
             });
            underworldMoonHalo = new THREE.Sprite(uMoonHaloMaterial);
            underworldMoonHalo.scale.set(UMOON_SIZE * 16, UMOON_SIZE * 16, 1);
-           underworldMoonHalo.renderOrder = 100;
-           underworldMoonGlow.renderOrder = 100;
+           underworldMoonHalo.renderOrder = 52;
+           underworldMoonGlow.renderOrder = 51;
            scene.add(underworldMoonHalo);
            
             // Underworld Moon light - dark blue light
@@ -2716,6 +2746,351 @@ let lensFlareEnabled = true;
     fimbulFrostCtx = fimbulFrostCanvas.getContext('2d');
 }
 
+function initLowerCO2System() {
+    const positions = new Float32Array(LOWER_CO2_MAX_PARTICLES * 3);
+    const sizes = new Float32Array(LOWER_CO2_MAX_PARTICLES);
+    const alphas = new Float32Array(LOWER_CO2_MAX_PARTICLES);
+    
+    lowerCO2Geometry = new THREE.BufferGeometry();
+    lowerCO2Geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    lowerCO2Geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    lowerCO2Geometry.setAttribute('alpha', new THREE.BufferAttribute(alphas, 1));
+    
+            lowerCO2Material = new THREE.ShaderMaterial({
+        uniforms: {
+            uPixelRatio: { value: renderer.getPixelRatio() },
+            uOpacity: { value: 0.0 },
+            uSunBrightness: { value: 1.5 },
+            uMoonBrightness: { value: 0.8 }
+        },
+        vertexShader: `
+            attribute float size;
+            attribute float alpha;
+            varying float vAlpha;
+            uniform float uPixelRatio;
+            void main() {
+                vAlpha = alpha;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = size * uPixelRatio * (300.0 / -mvPosition.z);
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `,
+        fragmentShader: `
+            varying float vAlpha;
+            uniform float uOpacity;
+            uniform float uSunBrightness;
+            uniform float uMoonBrightness;
+            void main() {
+                vec2 center = gl_PointCoord - vec2(0.5);
+                float dist = length(center) * 2.0;
+                float core = 1.0 - smoothstep(0.0, 0.5, dist);
+                float alpha = core * 0.5 * vAlpha * uOpacity;
+                vec3 darkColor = vec3(0.02, 0.02, 0.03);
+                vec3 sunColor = vec3(1.0, 0.27, 0.13);
+                vec3 moonColor = vec3(0.2, 0.27, 0.73);
+                float sunFactor = smoothstep(0.15, 0.8, uSunBrightness);
+                float moonFactor = smoothstep(0.15, 0.8, uMoonBrightness);
+                float totalLight = sunFactor + moonFactor * 0.5;
+                vec3 brightColor = (sunColor * sunFactor + moonColor * moonFactor) / max(0.01, sunFactor + moonFactor);
+                vec3 co2Color = mix(darkColor, brightColor, clamp(totalLight, 0.0, 1.0));
+                gl_FragColor = vec4(co2Color, alpha);
+            }
+        `,
+        transparent: true,
+        blending: THREE.NormalBlending,
+        depthWrite: false,
+        depthTest: false
+    });
+    
+    lowerCO2Points = new THREE.Points(lowerCO2Geometry, lowerCO2Material);
+     lowerCO2Points.frustumCulled = false;
+    lowerCO2Points.renderOrder = 100;
+    scene.add(lowerCO2Points);
+}
+
+function spawnLowerCO2Particle() {
+    if (lowerCO2Particles.length >= LOWER_CO2_MAX_PARTICLES) return;
+    
+    // Spawn from lower hemisphere of shell (y < 0)
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.PI / 2 + Math.random() * (Math.PI / 2); // Lower hemisphere only
+    
+    const spawnRadius = SHELL_RADIUS - 50;
+    const x = spawnRadius * Math.sin(phi) * Math.cos(theta);
+    const y = spawnRadius * Math.cos(phi); // Will be negative (lower hemisphere)
+    const z = spawnRadius * Math.sin(phi) * Math.sin(theta);
+    
+    // Target: bottom of strata in lower hemisphere
+    const targetY = -DISK_THICKNESS / 2 - 100;
+    
+    lowerCO2Particles.push({
+        x: x,
+        y: y,
+        z: z,
+        targetY: targetY,
+        speed: (1.5 + Math.random() * 3) * (SHELL_RADIUS / 4039),
+        drift: (Math.random() - 0.5) * 2,
+         size: 35 + Math.random() * 50,
+        alpha: 0.4 + Math.random() * 0.6,
+        wobble: Math.random() * Math.PI * 2,
+        wobbleSpeed: 0.02 + Math.random() * 0.03
+    });
+}
+
+function updateLowerCO2System() {
+    // Determine target opacity based on underworld sun brightness
+    if (USUN_BRIGHTNESS <= 0.15) {
+        // Start timer when sun first dies
+        if (lowerCO2StartTime === 0) {
+            lowerCO2StartTime = Date.now();
+            lowerCO2Exhausted = false;
+        }
+        // Check if 2 minutes have passed
+        if (Date.now() - lowerCO2StartTime > CO2_FALLOUT_DURATION) {
+            lowerCO2Exhausted = true;
+        }
+        lowerCO2TargetOpacity = lowerCO2Exhausted ? 0 : 1.0;
+    } else if (USUN_BRIGHTNESS <= 0.5) {
+        lowerCO2TargetOpacity = lowerCO2Exhausted ? 0 : (1.0 - ((USUN_BRIGHTNESS - 0.15) / 0.35));
+    } else {
+        // Sun is back on - reset timer for next death
+        lowerCO2TargetOpacity = 0;
+        lowerCO2StartTime = 0;
+        lowerCO2Exhausted = false;
+    }
+    
+    // Smooth fade
+    if (lowerCO2CurrentOpacity < lowerCO2TargetOpacity) {
+        lowerCO2CurrentOpacity = Math.min(lowerCO2TargetOpacity, lowerCO2CurrentOpacity + CO2_FADE_SPEED);
+    } else if (lowerCO2CurrentOpacity > lowerCO2TargetOpacity) {
+        lowerCO2CurrentOpacity = Math.max(lowerCO2TargetOpacity, lowerCO2CurrentOpacity - CO2_FADE_SPEED);
+    }
+    
+lowerCO2Material.uniforms.uOpacity.value = lowerCO2CurrentOpacity;
+    lowerCO2Material.uniforms.uSunBrightness.value = USUN_BRIGHTNESS;
+    lowerCO2Material.uniforms.uMoonBrightness.value = UMOON_BRIGHTNESS;
+    
+    // Spawn new particles when sun is dying (burst spawn to maintain density)
+    if (lowerCO2TargetOpacity > 0) {
+        const spawnCount = Math.floor(CO2_SPAWN_RATE * 10 * lowerCO2TargetOpacity);
+        for (let i = 0; i < spawnCount && lowerCO2Particles.length < LOWER_CO2_MAX_PARTICLES; i++) {
+            spawnLowerCO2Particle();
+        }
+    }
+    
+    // Update particle positions
+    const positions = lowerCO2Geometry.attributes.position.array;
+    const sizes = lowerCO2Geometry.attributes.size.array;
+    const alphas = lowerCO2Geometry.attributes.alpha.array;
+    
+    // Clear arrays
+    for (let i = 0; i < LOWER_CO2_MAX_PARTICLES * 3; i++) positions[i] = 0;
+    for (let i = 0; i < LOWER_CO2_MAX_PARTICLES; i++) { sizes[i] = 0; alphas[i] = 0; }
+    
+    // Update each particle
+    for (let i = lowerCO2Particles.length - 1; i >= 0; i--) {
+        const p = lowerCO2Particles[i];
+        
+        // Fall toward target (upward in world space since y is negative)
+        p.y += p.speed; // Moving toward 0 (less negative)
+        
+        // Wobble drift
+        p.wobble += p.wobbleSpeed;
+        p.x += Math.sin(p.wobble) * p.drift;
+        p.z += Math.cos(p.wobble * 0.7) * p.drift;
+        
+        // Remove if reached target or opacity is zero
+        if (p.y >= p.targetY || (lowerCO2CurrentOpacity <= 0 && lowerCO2TargetOpacity <= 0)) {
+            lowerCO2Particles.splice(i, 1);
+            continue;
+        }
+        
+        // Write to buffers
+        positions[i * 3] = p.x;
+        positions[i * 3 + 1] = p.y;
+        positions[i * 3 + 2] = p.z;
+        sizes[i] = p.size;
+        alphas[i] = p.alpha;
+    }
+    
+    lowerCO2Geometry.attributes.position.needsUpdate = true;
+    lowerCO2Geometry.attributes.size.needsUpdate = true;
+    lowerCO2Geometry.attributes.alpha.needsUpdate = true;
+}
+
+function initUpperCO2System() {
+    const positions = new Float32Array(UPPER_CO2_MAX_PARTICLES * 3);
+    const sizes = new Float32Array(UPPER_CO2_MAX_PARTICLES);
+    const alphas = new Float32Array(UPPER_CO2_MAX_PARTICLES);
+    
+    upperCO2Geometry = new THREE.BufferGeometry();
+    upperCO2Geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    upperCO2Geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+    upperCO2Geometry.setAttribute('alpha', new THREE.BufferAttribute(alphas, 1));
+    
+    upperCO2Material = new THREE.ShaderMaterial({
+        uniforms: {
+            uPixelRatio: { value: renderer.getPixelRatio() },
+            uOpacity: { value: 0.0 },
+            uSunBrightness: { value: 1.5 },
+            uMoonBrightness: { value: 0.8 }
+        },
+        vertexShader: `
+            attribute float size;
+            attribute float alpha;
+            varying float vAlpha;
+            uniform float uPixelRatio;
+            void main() {
+                vAlpha = alpha;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = size * uPixelRatio * (300.0 / -mvPosition.z);
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `,
+        fragmentShader: `
+            varying float vAlpha;
+            uniform float uOpacity;
+            uniform float uSunBrightness;
+            uniform float uMoonBrightness;
+            void main() {
+                vec2 center = gl_PointCoord - vec2(0.5);
+                float dist = length(center) * 2.0;
+                float core = 1.0 - smoothstep(0.0, 0.6, dist);
+                float glow = 1.0 - smoothstep(0.0, 1.0, dist);
+                float alpha = (core * 0.4 + glow * 0.2) * vAlpha * uOpacity;
+                vec3 darkColor = vec3(0.02, 0.02, 0.03);
+                vec3 sunColor = vec3(1.0, 0.87, 0.27);
+                vec3 moonColor = vec3(0.67, 0.73, 1.0);
+                float sunFactor = smoothstep(0.15, 0.8, uSunBrightness);
+                float moonFactor = smoothstep(0.15, 0.8, uMoonBrightness);
+                float totalLight = sunFactor + moonFactor * 0.5;
+                vec3 brightColor = (sunColor * sunFactor + moonColor * moonFactor) / max(0.01, sunFactor + moonFactor);
+                vec3 co2Color = mix(darkColor, brightColor, clamp(totalLight, 0.0, 1.0));
+                gl_FragColor = vec4(co2Color, alpha);
+            }
+        `,
+        transparent: true,
+        blending: THREE.NormalBlending,
+        depthWrite: false,
+        depthTest: false
+    });
+    
+    upperCO2Points = new THREE.Points(upperCO2Geometry, upperCO2Material);
+    upperCO2Points.frustumCulled = false;
+    upperCO2Points.renderOrder = 100;
+    scene.add(upperCO2Points);
+}
+
+function spawnUpperCO2Particle() {
+    if (upperCO2Particles.length >= UPPER_CO2_MAX_PARTICLES) return;
+    
+    // Spawn from upper hemisphere of shell (y > 0)
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * (Math.PI / 2); // Upper hemisphere only (0 to PI/2)
+    
+    const spawnRadius = SHELL_RADIUS - 50;
+    const x = spawnRadius * Math.sin(phi) * Math.cos(theta);
+    const y = spawnRadius * Math.cos(phi); // Will be positive (upper hemisphere)
+    const z = spawnRadius * Math.sin(phi) * Math.sin(theta);
+    
+    // Target: top of strata in upper hemisphere
+    const targetY = DISK_THICKNESS / 2 + 100;
+    
+    upperCO2Particles.push({
+        x: x,
+        y: y,
+        z: z,
+        targetY: targetY,
+        speed: (1.5 + Math.random() * 3) * (SHELL_RADIUS / 4039),
+        drift: (Math.random() - 0.5) * 0.8,
+        size: 35 + Math.random() * 50,
+        alpha: 0.4 + Math.random() * 0.6,
+        wobble: Math.random() * Math.PI * 2,
+        wobbleSpeed: 0.008 + Math.random() * 0.015
+    });
+}
+
+function updateUpperCO2System() {
+    // Determine target opacity based on upper sun brightness
+    if (SUN_BRIGHTNESS <= 0.15) {
+        // Start timer when sun first dies
+        if (upperCO2StartTime === 0) {
+            upperCO2StartTime = Date.now();
+            upperCO2Exhausted = false;
+        }
+        // Check if 2 minutes have passed
+        if (Date.now() - upperCO2StartTime > CO2_FALLOUT_DURATION) {
+            upperCO2Exhausted = true;
+        }
+        upperCO2TargetOpacity = upperCO2Exhausted ? 0 : 1.0;
+    } else if (SUN_BRIGHTNESS <= 0.5) {
+        upperCO2TargetOpacity = upperCO2Exhausted ? 0 : (1.0 - ((SUN_BRIGHTNESS - 0.15) / 0.35));
+    } else {
+        // Sun is back on - reset timer for next death
+        upperCO2TargetOpacity = 0;
+        upperCO2StartTime = 0;
+        upperCO2Exhausted = false;
+    }
+    
+    // Smooth fade
+    if (upperCO2CurrentOpacity < upperCO2TargetOpacity) {
+        upperCO2CurrentOpacity = Math.min(upperCO2TargetOpacity, upperCO2CurrentOpacity + CO2_FADE_SPEED);
+    } else if (upperCO2CurrentOpacity > upperCO2TargetOpacity) {
+        upperCO2CurrentOpacity = Math.max(upperCO2TargetOpacity, upperCO2CurrentOpacity - CO2_FADE_SPEED);
+    }
+    
+    upperCO2Material.uniforms.uOpacity.value = upperCO2CurrentOpacity;
+    upperCO2Material.uniforms.uSunBrightness.value = SUN_BRIGHTNESS;
+    upperCO2Material.uniforms.uMoonBrightness.value = MOON_BRIGHTNESS;
+    
+    // Spawn new particles when sun is dying (burst spawn to maintain density)
+    if (upperCO2TargetOpacity > 0) {
+        const spawnCount = Math.floor(CO2_SPAWN_RATE * 10 * upperCO2TargetOpacity);
+        for (let i = 0; i < spawnCount && upperCO2Particles.length < UPPER_CO2_MAX_PARTICLES; i++) {
+            spawnUpperCO2Particle();
+        }
+    }
+    
+    // Update particle positions
+    const positions = upperCO2Geometry.attributes.position.array;
+    const sizes = upperCO2Geometry.attributes.size.array;
+    const alphas = upperCO2Geometry.attributes.alpha.array;
+    
+    // Clear arrays
+    for (let i = 0; i < UPPER_CO2_MAX_PARTICLES * 3; i++) positions[i] = 0;
+    for (let i = 0; i < UPPER_CO2_MAX_PARTICLES; i++) { sizes[i] = 0; alphas[i] = 0; }
+    
+    // Update each particle
+    for (let i = upperCO2Particles.length - 1; i >= 0; i--) {
+        const p = upperCO2Particles[i];
+        
+        // Fall downward toward strata
+        p.y -= p.speed;
+        
+        // Wobble drift
+        p.wobble += p.wobbleSpeed;
+        p.x += Math.sin(p.wobble) * p.drift;
+        p.z += Math.cos(p.wobble * 0.7) * p.drift;
+        
+        // Remove if reached target or opacity is zero
+        if (p.y <= p.targetY || (upperCO2CurrentOpacity <= 0 && upperCO2TargetOpacity <= 0)) {
+            upperCO2Particles.splice(i, 1);
+            continue;
+        }
+        
+        // Write to buffers
+        positions[i * 3] = p.x;
+        positions[i * 3 + 1] = p.y;
+        positions[i * 3 + 2] = p.z;
+        sizes[i] = p.size;
+        alphas[i] = p.alpha;
+    }
+    
+    upperCO2Geometry.attributes.position.needsUpdate = true;
+    upperCO2Geometry.attributes.size.needsUpdate = true;
+    upperCO2Geometry.attributes.alpha.needsUpdate = true;
+}
+
     function initLightning() {
     // Keep canvas for potential future use, but hide it
     lightningCanvas = document.getElementById('lightning-canvas');
@@ -4117,6 +4492,8 @@ activeLightningBolts.push({
     initEdgeColdSystem();  
     initFimbulwinterFrost();
     initLensFlare();
+    initLowerCO2System();
+    initUpperCO2System();
     initLightning();
     createStarAxis();
     createGeometry();
@@ -5393,6 +5770,8 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
         spawnShellLightningBolt();
     }
 }
+            updateLowerCO2System();
+            updateUpperCO2System();
             updateLightning();
 
            
@@ -5437,4 +5816,5 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
     </script>
 </body>
 </html>
+
 
