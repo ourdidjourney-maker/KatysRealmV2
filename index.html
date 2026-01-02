@@ -72,6 +72,15 @@
 <canvas id="fimbul-frost-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 51;"></canvas>
 <canvas id="lens-flare-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 52;"></canvas>
 <canvas id="lightning-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 53;"></canvas>
+<audio id="fimbulwinter-audio" loop preload="auto">
+    <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/18a3623be6c29516ed31840fccf2b7dc0f2a0c71/KatyShivering.mp3" type="audio/mpeg">
+</audio>
+<audio id="screaming-audio" preload="auto">
+    <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/b9c406de47dc84e36c4208d652250a1478c50757/CrowdScream3.mp3" type="audio/mpeg">
+</audio>
+<audio id="reignition-audio" preload="auto">
+    <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/64effe5b84f0e4489f69ca6bd4b570dfee79222a/Reignition2.mp3" type="audio/mpeg">
+</audio>
    
 <div id="grid-tooltip" style="position: absolute; display: none; background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(30,25,0,0.9) 100%); border: 1px solid #ffdd44; border-radius: 6px; padding: 6px 10px; font-size: 9px; pointer-events: none; z-index: 1000; min-width: 120px; transform: perspective(300px) rotateY(-15deg) rotateX(5deg) skewY(-2deg); box-shadow: 5px 5px 12px rgba(255,221,68,0.4), -2px -2px 8px rgba(255,221,68,0.2), inset 0 0 15px rgba(255,221,68,0.05); border-left: 4px solid #ffdd44;">
     <div style="color: #ffdd44; font-weight: bold; margin-bottom: 4px; font-size: 10px;" id="tooltip-hemisphere">UPPER HEMISPHERE</div>
@@ -451,6 +460,25 @@ const FIMBULWINTER_SUN_BRIGHTNESS_THRESHOLD = 0.8;
 const FIMBULWINTER_SUN_SIZE_THRESHOLD = 100;
 const FIMBULWINTER_MOON_MULTIPLIER = 0.3;
 let underShiverIntensity = 0;
+
+// Fimbulwinter Audio System
+let fimbulwinterAudio;
+let fimbulwinterAudioPlaying = false;
+let fimbulwinterAudioVolume = 0;
+const FIMBULWINTER_AUDIO_THRESHOLD = 0.5; // Sun brightness below this triggers audio
+let fimbulwinterAudioDelayTimer = null;
+
+// Screaming audio system (apocalyptic terror)
+let screamingAudio;
+let screamingPlayed = 0;
+const SCREAMING_MAX_PLAYS = 1;
+const SCREAMING_BRIGHTNESS_THRESHOLD = 0.25;
+let screamingCooldown = false;
+let screamingDelayTimer = null;
+let screamingCurrentlyPlaying = false;
+
+// Re-ignition audio system (sun/moon turning back on)
+let reignitionAudio;
 
 // Fimbulwinter shiver (camera shake from cold)
 let upperFimbulShiverIntensity = 0;
@@ -2308,6 +2336,144 @@ let lensFlareEnabled = true;
     }
 }
 
+function updateFimbulwinterAudio() {
+    if (!fimbulwinterAudio) return;
+    
+    // Determine which realm the camera is in
+    const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+    const inUpperView = isGroundView && !inUnderworldView;
+    
+    // Only check the sun in the realm we're actually viewing
+    let shouldPlay = false;
+    let targetVolume = 0;
+    
+    if (inUpperView && SUN_BRIGHTNESS < FIMBULWINTER_AUDIO_THRESHOLD) {
+        // Upper realm - check upper sun
+        shouldPlay = true;
+        const intensity = (FIMBULWINTER_AUDIO_THRESHOLD - SUN_BRIGHTNESS) / FIMBULWINTER_AUDIO_THRESHOLD;
+        targetVolume = Math.min(1, intensity * 1.5);
+    } else if (inUnderworldView && USUN_BRIGHTNESS < FIMBULWINTER_AUDIO_THRESHOLD) {
+        // Underworld - check underworld sun
+        shouldPlay = true;
+        const intensity = (FIMBULWINTER_AUDIO_THRESHOLD - USUN_BRIGHTNESS) / FIMBULWINTER_AUDIO_THRESHOLD;
+        targetVolume = Math.min(1, intensity * 1.5);
+    }
+    
+    // Not in a ground view at all? No shivering.
+    if (!isGroundView) {
+        shouldPlay = false;
+        targetVolume = 0;
+    }
+    
+    // Start delay timer when conditions first met
+    if (targetVolume > 0 && !fimbulwinterAudioPlaying && !fimbulwinterAudioDelayTimer) {
+        console.log('🥶 Fimbulwinter audio triggered - playing in 5 seconds...');
+        fimbulwinterAudioDelayTimer = setTimeout(() => {
+            fimbulwinterAudio.play()
+                .then(() => {
+                    console.log('✓ Katy Mae is shivering!');
+                    fimbulwinterAudioPlaying = true;
+                })
+                .catch(e => console.log('✗ Audio blocked:', e.message));
+            fimbulwinterAudioDelayTimer = null;
+        }, 5000);
+    }
+    
+    // Cancel timer if conditions no longer met
+    if (targetVolume <= 0 && fimbulwinterAudioDelayTimer) {
+        clearTimeout(fimbulwinterAudioDelayTimer);
+        fimbulwinterAudioDelayTimer = null;
+        console.log('☀️ Sun recovered or left view - shiver cancelled');
+    }
+    
+    // Only adjust volume AFTER audio is actually playing
+    if (fimbulwinterAudioPlaying) {
+        const volumeSpeed = 0.01;
+        if (fimbulwinterAudioVolume < targetVolume) {
+            fimbulwinterAudioVolume = Math.min(targetVolume, fimbulwinterAudioVolume + volumeSpeed);
+        } else if (fimbulwinterAudioVolume > targetVolume) {
+            fimbulwinterAudioVolume = Math.max(targetVolume, fimbulwinterAudioVolume - volumeSpeed * 0.3);
+        }
+        
+        fimbulwinterAudio.volume = fimbulwinterAudioVolume;
+        
+        // Stop playing if volume hits zero
+        if (fimbulwinterAudioVolume <= 0.01 && targetVolume <= 0) {
+            fimbulwinterAudio.pause();
+            fimbulwinterAudio.currentTime = 0;
+            fimbulwinterAudioPlaying = false;
+            fimbulwinterAudioVolume = 0;
+            console.log('🔇 Shivering stopped');
+        }
+    }
+}
+
+function updateScreamingAudio() {
+    if (!screamingAudio) return;
+    
+    // If already played max times, do nothing
+    if (screamingPlayed >= SCREAMING_MAX_PLAYS) return;
+    
+    // If currently playing, let it finish - DON'T INTERRUPT
+    if (screamingCurrentlyPlaying) return;
+    
+    // If on cooldown, wait
+    if (screamingCooldown) return;
+    
+    // Determine which realm the camera is in
+    const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+    const inUpperView = isGroundView && !inUnderworldView;
+    
+    // No screaming in orbit view
+    if (!isGroundView) return;
+    
+    // Check if sun is critically low IN THE REALM WE'RE VIEWING
+    let shouldScream = false;
+    
+    if (inUpperView && SUN_BRIGHTNESS < SCREAMING_BRIGHTNESS_THRESHOLD) {
+        shouldScream = true;
+    } else if (inUnderworldView && USUN_BRIGHTNESS < SCREAMING_BRIGHTNESS_THRESHOLD) {
+        shouldScream = true;
+    }
+    
+    // Start delay timer when conditions first met
+    if (shouldScream && !screamingDelayTimer) {
+        console.log('😨 Panic building - screaming in 2 seconds...');
+        screamingDelayTimer = setTimeout(() => {
+            screamingCurrentlyPlaying = true;
+            screamingAudio.currentTime = 0;
+            screamingAudio.play()
+                .then(() => {
+                    console.log('😱 THE PEOPLE ARE SCREAMING!');
+                    screamingPlayed++;
+                    
+                    // When audio ends, mark as not playing
+                    screamingAudio.onended = () => {
+                        console.log('😶 Screaming ended');
+                        screamingCurrentlyPlaying = false;
+                        screamingCooldown = true;
+                        
+                        setTimeout(() => {
+                            screamingCooldown = false;
+                        }, 30000);
+                    };
+                })
+                .catch(e => {
+                    console.log('Scream blocked:', e.message);
+                    screamingCurrentlyPlaying = false;
+                });
+            screamingDelayTimer = null;
+        }, 2000);
+    }
+    
+    // Cancel timer if conditions no longer met (but NOT if already playing!)
+    if (!shouldScream && screamingDelayTimer && !screamingCurrentlyPlaying) {
+        clearTimeout(screamingDelayTimer);
+        screamingDelayTimer = null;
+        console.log('☀️ Panic averted');
+    }
+}
+
     function updateFimbulwinterFrost() {
     if (!fimbulFrostCtx || !fimbulFrostCanvas) return;
    
@@ -3091,6 +3257,98 @@ function updateUpperCO2System() {
     upperCO2Geometry.attributes.alpha.needsUpdate = true;
 }
 
+function initScreamingAudio() {
+    screamingAudio = document.getElementById('screaming-audio');
+    if (screamingAudio) {
+        screamingAudio.volume = 0.8;
+        console.log('✓ Screaming audio initialized');
+    }
+}
+
+function initReignitionAudio() {
+    reignitionAudio = document.getElementById('reignition-audio');
+    if (reignitionAudio) {
+        reignitionAudio.volume = 0.7;
+        console.log('✓ Re-ignition audio initialized');
+    }
+}
+
+function playReignitionSound(realm) {
+    if (!reignitionAudio) {
+        console.log('❌ Re-ignition audio not initialized');
+        return;
+    }
+    
+    // No sound in orbit view
+    if (!isGroundView) {
+        console.log('🔇 Re-ignition skipped - not in ground view');
+        return;
+    }
+    
+    // Determine which realm the camera is in
+    const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+    const inUpperView = isGroundView && !inUnderworldView;
+    
+    // Only play if we're in the matching realm
+    if (realm === 'upper' && !inUpperView) {
+        console.log('🔇 Re-ignition skipped - upper sound but in underworld view');
+        return;
+    }
+    if (realm === 'lower' && !inUnderworldView) {
+        console.log('🔇 Re-ignition skipped - lower sound but in upper view');
+        return;
+    }
+    
+    // Create a new Audio object with the same source for true simultaneous playback
+    const audioClone = new Audio(reignitionAudio.querySelector('source').src);
+    audioClone.volume = 0.7;
+    
+    audioClone.play()
+        .then(() => {
+            console.log('🔥 Re-ignition sound played for ' + realm + ' realm!');
+        })
+        .catch(e => {
+            console.log('Re-ignition audio blocked:', e.message);
+        });
+    
+    // Clean up clone after it finishes playing
+    audioClone.onended = () => {
+        audioClone.remove();
+    };
+}
+
+function initFimbulwinterAudio() {
+    fimbulwinterAudio = document.getElementById('fimbulwinter-audio');
+    if (fimbulwinterAudio) {
+        fimbulwinterAudio.volume = 0;
+        
+        // Unlock audio on first user interaction (required by browsers)
+        let audioUnlocked = false;
+        const unlockAudio = () => {
+            if (audioUnlocked) return;
+            audioUnlocked = true;
+            
+            // Create a short silent play to unlock
+            fimbulwinterAudio.muted = true;
+            fimbulwinterAudio.play().then(() => {
+                fimbulwinterAudio.pause();
+                fimbulwinterAudio.currentTime = 0;
+                fimbulwinterAudio.muted = false;
+                console.log('✓ Fimbulwinter audio UNLOCKED');
+            }).catch((e) => {
+                console.log('Audio unlock failed:', e);
+                audioUnlocked = false; // Try again next interaction
+            });
+        };
+        
+        // Listen for ANY user interaction
+        ['click', 'keydown', 'touchstart', 'mousedown'].forEach(event => {
+            document.addEventListener(event, unlockAudio, { once: false });
+        });
+    } else {
+        console.log('ERROR: fimbulwinter-audio element not found!');
+    }
+}
     function initLightning() {
     // Keep canvas for potential future use, but hide it
     lightningCanvas = document.getElementById('lightning-canvas');
@@ -4495,6 +4753,9 @@ activeLightningBolts.push({
     initLowerCO2System();
     initUpperCO2System();
     initLightning();
+    initFimbulwinterAudio();
+    initScreamingAudio();
+    initReignitionAudio();
     createStarAxis();
     createGeometry();
     createStarfield();
@@ -4827,7 +5088,7 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
         document.getElementById('sun-height').addEventListener('input', (e) => { SUN_HEIGHT = parseInt(e.target.value); document.getElementById('sun-height-value').textContent = SUN_HEIGHT + ' mi'; });
         document.getElementById('sun-radius-min').addEventListener('input', (e) => { SUN_RADIUS_MIN = parseInt(e.target.value); document.getElementById('sun-radius-min-value').textContent = SUN_RADIUS_MIN + ' mi'; });
         document.getElementById('sun-radius-max').addEventListener('input', (e) => { SUN_RADIUS_MAX = parseInt(e.target.value); document.getElementById('sun-radius-max-value').textContent = SUN_RADIUS_MAX + ' mi'; });
-    document.getElementById('sun-brightness').addEventListener('input', (e) => {
+document.getElementById('sun-brightness').addEventListener('input', (e) => {
     const newBrightness = parseFloat(e.target.value);
     
     // Detect re-ignition: was off, now turning back on
@@ -4835,6 +5096,7 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
         sunFlickerActive = true;
         sunFlickerStartTime = Date.now();
         sunWasOff = false;
+        playReignitionSound('upper');
     }
     
     // Track if sun is currently "off"
@@ -4858,7 +5120,7 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
         document.getElementById('moon-height').addEventListener('input', (e) => { MOON_HEIGHT = parseInt(e.target.value); document.getElementById('moon-height-value').textContent = MOON_HEIGHT + ' mi'; });
         document.getElementById('moon-radius-min').addEventListener('input', (e) => { MOON_RADIUS_MIN = parseInt(e.target.value); document.getElementById('moon-radius-min-value').textContent = MOON_RADIUS_MIN + ' mi'; });
         document.getElementById('moon-radius-max').addEventListener('input', (e) => { MOON_RADIUS_MAX = parseInt(e.target.value); document.getElementById('moon-radius-max-value').textContent = MOON_RADIUS_MAX + ' mi'; });
-    document.getElementById('moon-brightness').addEventListener('input', (e) => {
+document.getElementById('moon-brightness').addEventListener('input', (e) => {
     const newBrightness = parseFloat(e.target.value);
     
     // Detect re-ignition: was off, now turning back on
@@ -4866,6 +5128,7 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
         moonFlickerActive = true;
         moonFlickerStartTime = Date.now();
         moonWasOff = false;
+        playReignitionSound('upper');
     }
     
     // Track if moon is currently "off"
@@ -4890,7 +5153,7 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
        
         // Underworld Sun controls
     document.getElementById('usun-speed').addEventListener('input', (e) => { USUN_SPEED = parseFloat(e.target.value); document.getElementById('usun-speed-value').textContent = USUN_SPEED.toFixed(1) + 'x'; });
-    document.getElementById('usun-brightness').addEventListener('input', (e) => {
+document.getElementById('usun-brightness').addEventListener('input', (e) => {
     const newBrightness = parseFloat(e.target.value);
     
     // Detect re-ignition: was off, now turning back on
@@ -4898,6 +5161,7 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
         uSunFlickerActive = true;
         uSunFlickerStartTime = Date.now();
         uSunWasOff = false;
+        playReignitionSound('lower');
     }
     
     // Track if underworld sun is currently "off"
@@ -4915,7 +5179,7 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
     document.getElementById('usun-light-radius').addEventListener('input', (e) => { USUN_LIGHT_RADIUS = parseInt(e.target.value); document.getElementById('usun-light-radius-value').textContent = USUN_LIGHT_RADIUS + ' mi'; });
     // Underworld Moon controls
     document.getElementById('umoon-speed').addEventListener('input', (e) => { UMOON_SPEED = parseFloat(e.target.value); document.getElementById('umoon-speed-value').textContent = UMOON_SPEED.toFixed(2) + 'x'; });
-    document.getElementById('umoon-brightness').addEventListener('input', (e) => {
+document.getElementById('umoon-brightness').addEventListener('input', (e) => {
     const newBrightness = parseFloat(e.target.value);
     
     // Detect re-ignition: was off, now turning back on
@@ -4923,6 +5187,7 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
         uMoonFlickerActive = true;
         uMoonFlickerStartTime = Date.now();
         uMoonWasOff = false;
+        playReignitionSound('lower');
     }
     
     // Track if underworld moon is currently "off"
@@ -5714,6 +5979,8 @@ document.getElementById('strata-thickness').addEventListener('input', (e) => {
             // Update Fimbulwinter systems (dying sun/moon cold)
             updateUpperFimbulwinter();
             updateLowerFimbulwinter();
+            updateFimbulwinterAudio();
+            updateScreamingAudio();
            
     // Fade stars and nebulae during Fimbulwinter - INDEPENDENT HEMISPHERES
     if (starfieldMaterial) {
