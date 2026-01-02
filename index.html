@@ -2367,14 +2367,11 @@ function updateFimbulwinterAudio() {
     
     // Start delay timer when conditions first met
     if (targetVolume > 0 && !fimbulwinterAudioPlaying && !fimbulwinterAudioDelayTimer) {
-        console.log('🥶 Fimbulwinter audio triggered - playing in 5 seconds...');
         fimbulwinterAudioDelayTimer = setTimeout(() => {
             fimbulwinterAudio.play()
                 .then(() => {
-                    console.log('✓ Katy Mae is shivering!');
                     fimbulwinterAudioPlaying = true;
                 })
-                .catch(e => console.log('✗ Audio blocked:', e.message));
             fimbulwinterAudioDelayTimer = null;
         }, 5000);
     }
@@ -2383,7 +2380,6 @@ function updateFimbulwinterAudio() {
     if (targetVolume <= 0 && fimbulwinterAudioDelayTimer) {
         clearTimeout(fimbulwinterAudioDelayTimer);
         fimbulwinterAudioDelayTimer = null;
-        console.log('☀️ Sun recovered or left view - shiver cancelled');
     }
     
     // Only adjust volume AFTER audio is actually playing
@@ -2403,7 +2399,6 @@ function updateFimbulwinterAudio() {
             fimbulwinterAudio.currentTime = 0;
             fimbulwinterAudioPlaying = false;
             fimbulwinterAudioVolume = 0;
-            console.log('🔇 Shivering stopped');
         }
     }
 }
@@ -2438,18 +2433,15 @@ function updateScreamingAudio() {
     
     // Start delay timer when conditions first met
     if (shouldScream && !screamingDelayTimer) {
-        console.log('😨 Panic building - screaming in 2 seconds...');
         screamingDelayTimer = setTimeout(() => {
             screamingCurrentlyPlaying = true;
             screamingAudio.currentTime = 0;
             screamingAudio.play()
                 .then(() => {
-                    console.log('😱 THE PEOPLE ARE SCREAMING!');
                     screamingPlayed++;
                     
                     // When audio ends, mark as not playing
                     screamingAudio.onended = () => {
-                        console.log('😶 Screaming ended');
                         screamingCurrentlyPlaying = false;
                         screamingCooldown = true;
                         
@@ -2459,7 +2451,6 @@ function updateScreamingAudio() {
                     };
                 })
                 .catch(e => {
-                    console.log('Scream blocked:', e.message);
                     screamingCurrentlyPlaying = false;
                 });
             screamingDelayTimer = null;
@@ -2470,7 +2461,6 @@ function updateScreamingAudio() {
     if (!shouldScream && screamingDelayTimer && !screamingCurrentlyPlaying) {
         clearTimeout(screamingDelayTimer);
         screamingDelayTimer = null;
-        console.log('☀️ Panic averted');
     }
 }
 
@@ -3261,7 +3251,6 @@ function initScreamingAudio() {
     screamingAudio = document.getElementById('screaming-audio');
     if (screamingAudio) {
         screamingAudio.volume = 0.8;
-        console.log('✓ Screaming audio initialized');
     }
 }
 
@@ -3269,19 +3258,16 @@ function initReignitionAudio() {
     reignitionAudio = document.getElementById('reignition-audio');
     if (reignitionAudio) {
         reignitionAudio.volume = 0.7;
-        console.log('✓ Re-ignition audio initialized');
     }
 }
 
 function playReignitionSound(realm) {
     if (!reignitionAudio) {
-        console.log('❌ Re-ignition audio not initialized');
         return;
     }
     
     // No sound in orbit view
     if (!isGroundView) {
-        console.log('🔇 Re-ignition skipped - not in ground view');
         return;
     }
     
@@ -3291,11 +3277,9 @@ function playReignitionSound(realm) {
     
     // Only play if we're in the matching realm
     if (realm === 'upper' && !inUpperView) {
-        console.log('🔇 Re-ignition skipped - upper sound but in underworld view');
         return;
     }
     if (realm === 'lower' && !inUnderworldView) {
-        console.log('🔇 Re-ignition skipped - lower sound but in upper view');
         return;
     }
     
@@ -3305,10 +3289,8 @@ function playReignitionSound(realm) {
     
     audioClone.play()
         .then(() => {
-            console.log('🔥 Re-ignition sound played for ' + realm + ' realm!');
         })
         .catch(e => {
-            console.log('Re-ignition audio blocked:', e.message);
         });
     
     // Clean up clone after it finishes playing
@@ -3334,9 +3316,7 @@ function initFimbulwinterAudio() {
                 fimbulwinterAudio.pause();
                 fimbulwinterAudio.currentTime = 0;
                 fimbulwinterAudio.muted = false;
-                console.log('✓ Fimbulwinter audio UNLOCKED');
             }).catch((e) => {
-                console.log('Audio unlock failed:', e);
                 audioUnlocked = false; // Try again next interaction
             });
         };
@@ -3346,7 +3326,6 @@ function initFimbulwinterAudio() {
             document.addEventListener(event, unlockAudio, { once: false });
         });
     } else {
-        console.log('ERROR: fimbulwinter-audio element not found!');
     }
 }
     function initLightning() {
