@@ -84,6 +84,9 @@
 <audio id="eas-audio" preload="auto">
     <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/7395754d62245b4d6f7446dac682f8ae0e0c5443/Eas.mp3" type="audio/mpeg">
 </audio>
+<audio id="church-audio" loop preload="auto">
+    <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/8cacb591b568f27d2ee38661de77f6c82d0a5b5c/Christian%20Music%20(No%20Copyright)%20-%20Gregorian%20Chant%20by%20KevinMacLeod.mp3" type="audio/mpeg">
+</audio>
    
 <div id="grid-tooltip" style="position: absolute; display: none; background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(30,25,0,0.9) 100%); border: 1px solid #ffdd44; border-radius: 6px; padding: 6px 10px; font-size: 9px; pointer-events: none; z-index: 1000; min-width: 120px; transform: perspective(300px) rotateY(-15deg) rotateX(5deg) skewY(-2deg); box-shadow: 5px 5px 12px rgba(255,221,68,0.4), -2px -2px 8px rgba(255,221,68,0.2), inset 0 0 15px rgba(255,221,68,0.05); border-left: 4px solid #ffdd44;">
     <div style="color: #ffdd44; font-weight: bold; margin-bottom: 4px; font-size: 10px;" id="tooltip-hemisphere">UPPER HEMISPHERE</div>
@@ -488,6 +491,12 @@ let easAudio;
 let easPlayed = false;
 let easTriggered = false;
 const EAS_BRIGHTNESS_THRESHOLD = 0.75; // 50% of default 1.5
+
+// Divine Resonance - Church music from the shell
+let churchAudio;
+let churchAudioInitialized = false;
+const CHURCH_AUDIO_MAX_DISTANCE = 4000; // Must be close to hear the prayers
+const CHURCH_AUDIO_MIN_DISTANCE = 200; // Distance at which music is full volume
 
 // Fimbulwinter shiver (camera shake from cold)
 let upperFimbulShiverIntensity = 0;
@@ -3278,6 +3287,68 @@ function initEASAudio() {
     }
 }
 
+function initChurchAudio() {
+    churchAudio = document.getElementById('church-audio');
+    if (churchAudio) {
+        churchAudio.volume = 0;
+    }
+}
+
+function updateChurchAudio() {
+    if (!churchAudio) return;
+    
+    // Only plays in orbit view - you must be God to hear the prayers
+    if (isGroundView) {
+        // Fade out if we were playing
+        if (churchAudioInitialized && !churchAudio.paused) {
+            churchAudio.volume = Math.max(0, churchAudio.volume - 0.001);
+            if (churchAudio.volume <= 0.001) {
+                churchAudio.pause();
+            }
+        }
+        return;
+    }
+    
+    // Calculate distance from camera to shell surface
+    const cameraDistance = camera.position.length();
+    const distToShell = cameraDistance - SHELL_RADIUS;
+    
+    // Calculate target volume based on proximity to shell
+    let targetVolume = 0;
+    
+if (distToShell <= CHURCH_AUDIO_MIN_DISTANCE) {
+    targetVolume = 0.01; //volume
+} else if (distToShell >= CHURCH_AUDIO_MAX_DISTANCE) {
+    targetVolume = 0;
+} else {
+    targetVolume = 0.01 * (1.0 - ((distToShell - CHURCH_AUDIO_MIN_DISTANCE) / (CHURCH_AUDIO_MAX_DISTANCE - CHURCH_AUDIO_MIN_DISTANCE)));
+}
+    
+    // ULTRA smooth volume transitions - lerp toward target
+    const currentVol = churchAudio.volume;
+    const diff = targetVolume - currentVol;
+    
+    // Ease into the target - only move 0.5% of the remaining distance per frame
+    // This creates a smooth exponential ease that never jumps
+    const easeFactor = 0.005;
+    const newVolume = currentVol + (diff * easeFactor);
+    
+    // Clamp to valid range
+    churchAudio.volume = Math.max(0, Math.min(1, newVolume));
+    
+    // Start playing if we should hear something and not already playing
+    if (targetVolume > 0 && churchAudio.paused) {
+        churchAudio.play().then(() => {
+            churchAudioInitialized = true;
+        }).catch(e => {});
+    }
+    
+    // Only pause if REALLY silent to prevent cutoff
+    if (churchAudio.volume <= 0.001 && targetVolume <= 0 && !churchAudio.paused) {
+        churchAudio.pause();
+    }
+}
+
 function updateEASAudio() {
     if (!easAudio) return;
     
@@ -4795,6 +4866,7 @@ activeLightningBolts.push({
     initScreamingAudio();
     initReignitionAudio();
     initEASAudio();
+    initChurchAudio();
     createStarAxis();
     createGeometry();
     createStarfield();
@@ -6021,6 +6093,7 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             updateFimbulwinterAudio();
             updateScreamingAudio();
             updateEASAudio();
+            updateChurchAudio();
            
     // Fade stars and nebulae during Fimbulwinter - INDEPENDENT HEMISPHERES
     if (starfieldMaterial) {
