@@ -487,6 +487,7 @@ let sliderColdVolume = 0;
 const SLIDER_COLD_THRESHOLD = 0.6; // Sun brightness slider below this = cold
 let sliderColdShiverIntensity = 0;
 const SLIDER_COLD_SHIVER_MAX = 15; // Camera shake intensity
+let sliderColdStartTime = 0; // Timer for delayed shiver start
 
 // Screaming audio system (apocalyptic terror)
 let screamingAudio;
@@ -2522,6 +2523,25 @@ function updateScreamingAudio() {
 function updateSliderCold() {
     if (!sliderColdAudio) return;
     
+    // Check if Fimbulwinter is already handling audio - if so, back off
+    if (fimbulwinterAudioPlaying) {
+        // Fimbulwinter has taken over - fade out slider cold
+        if (sliderColdPlaying) {
+            sliderColdVolume = Math.max(0, sliderColdVolume - 0.02);
+            sliderColdAudio.volume = sliderColdVolume;
+            
+            if (sliderColdVolume <= 0.01) {
+                sliderColdAudio.pause();
+                sliderColdAudio.currentTime = 0;
+                sliderColdPlaying = false;
+                sliderColdVolume = 0;
+            }
+        }
+        sliderColdShiverIntensity = 0;
+        sliderColdStartTime = 0; // Reset timer
+        return;
+    }
+    
     // Check if either sun is below threshold (based on which realm we're viewing)
     const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
     const inUpperView = isGroundView && !inUnderworldView;
@@ -2530,21 +2550,44 @@ function updateSliderCold() {
     let coldIntensity = 0;
     
     // Upper realm - check upper sun
-    if (inUpperView && SUN_BRIGHTNESS < SLIDER_COLD_THRESHOLD) {
+    // Only trigger slider cold ABOVE Fimbulwinter threshold (dimmed but not dead)
+    if (inUpperView && SUN_BRIGHTNESS < SLIDER_COLD_THRESHOLD && SUN_BRIGHTNESS >= FIMBULWINTER_AUDIO_THRESHOLD) {
         sunIsCold = true;
-        coldIntensity = (SLIDER_COLD_THRESHOLD - SUN_BRIGHTNESS) / SLIDER_COLD_THRESHOLD;
+        // Scale intensity within the "dimmed but not dead" range
+        coldIntensity = (SLIDER_COLD_THRESHOLD - SUN_BRIGHTNESS) / (SLIDER_COLD_THRESHOLD - FIMBULWINTER_AUDIO_THRESHOLD);
     }
     
     // Underworld - check underworld sun
-    if (inUnderworldView && USUN_BRIGHTNESS < SLIDER_COLD_THRESHOLD) {
+    if (inUnderworldView && USUN_BRIGHTNESS < SLIDER_COLD_THRESHOLD && USUN_BRIGHTNESS >= FIMBULWINTER_AUDIO_THRESHOLD) {
         sunIsCold = true;
-        coldIntensity = (SLIDER_COLD_THRESHOLD - USUN_BRIGHTNESS) / SLIDER_COLD_THRESHOLD;
+        coldIntensity = (SLIDER_COLD_THRESHOLD - USUN_BRIGHTNESS) / (SLIDER_COLD_THRESHOLD - FIMBULWINTER_AUDIO_THRESHOLD);
     }
     
     // Must be in ground view
     if (!isGroundView) {
         sunIsCold = false;
         coldIntensity = 0;
+    }
+    
+    // Handle delay timer
+    const SLIDER_COLD_DELAY = 15000; // Time before Katy starts shivering
+    
+    if (sunIsCold) {
+        // Start timer if not already started
+        if (sliderColdStartTime === 0) {
+            sliderColdStartTime = Date.now();
+        }
+        
+        // Check if delay has passed
+        const elapsed = Date.now() - sliderColdStartTime;
+        if (elapsed < SLIDER_COLD_DELAY) {
+            // Still waiting - no audio yet
+            coldIntensity = 0;
+            sunIsCold = false;
+        }
+    } else {
+        // Sun is warm again - reset timer
+        sliderColdStartTime = 0;
     }
     
     // Target volume based on how cold it is
@@ -2575,8 +2618,8 @@ function updateSliderCold() {
         sliderColdVolume = 0;
     }
     
-    // Camera shiver intensity
-    if (sunIsCold) {
+    // Camera shiver intensity (also delayed)
+    if (sunIsCold && coldIntensity > 0) {
         sliderColdShiverIntensity = coldIntensity * SLIDER_COLD_SHIVER_MAX;
     } else {
         sliderColdShiverIntensity = Math.max(0, sliderColdShiverIntensity - 0.5);
@@ -3567,13 +3610,16 @@ function updateEASAudio() {
     if (shouldTrigger && !easTriggered) {
         easTriggered = true;
         
-        easAudio.play()
-            .then(() => {
-                easPlayed = true;
-            })
-            .catch(e => {
-                easTriggered = false; // Allow retry if blocked
-            });
+        // 3 second delay before EAS plays
+        setTimeout(() => {
+            easAudio.play()
+                .then(() => {
+                    easPlayed = true;
+                })
+                .catch(e => {
+                    easTriggered = false; // Allow retry if blocked
+                });
+        }, 3000);
     }
 }
 
