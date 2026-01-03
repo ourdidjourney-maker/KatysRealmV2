@@ -81,6 +81,9 @@
 <audio id="reignition-audio" preload="auto">
     <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/64effe5b84f0e4489f69ca6bd4b570dfee79222a/Reignition2.mp3" type="audio/mpeg">
 </audio>
+<audio id="eas-audio" preload="auto">
+    <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/7395754d62245b4d6f7446dac682f8ae0e0c5443/Eas.mp3" type="audio/mpeg">
+</audio>
    
 <div id="grid-tooltip" style="position: absolute; display: none; background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(30,25,0,0.9) 100%); border: 1px solid #ffdd44; border-radius: 6px; padding: 6px 10px; font-size: 9px; pointer-events: none; z-index: 1000; min-width: 120px; transform: perspective(300px) rotateY(-15deg) rotateX(5deg) skewY(-2deg); box-shadow: 5px 5px 12px rgba(255,221,68,0.4), -2px -2px 8px rgba(255,221,68,0.2), inset 0 0 15px rgba(255,221,68,0.05); border-left: 4px solid #ffdd44;">
     <div style="color: #ffdd44; font-weight: bold; margin-bottom: 4px; font-size: 10px;" id="tooltip-hemisphere">UPPER HEMISPHERE</div>
@@ -479,6 +482,12 @@ let screamingCurrentlyPlaying = false;
 
 // Re-ignition audio system (sun/moon turning back on)
 let reignitionAudio;
+
+// Emergency Alert System
+let easAudio;
+let easPlayed = false;
+let easTriggered = false;
+const EAS_BRIGHTNESS_THRESHOLD = 0.75; // 50% of default 1.5
 
 // Fimbulwinter shiver (camera shake from cold)
 let upperFimbulShiverIntensity = 0;
@@ -3261,6 +3270,56 @@ function initReignitionAudio() {
     }
 }
 
+function initEASAudio() {
+    easAudio = document.getElementById('eas-audio');
+    if (easAudio) {
+        easAudio.volume = 1.0;
+        console.log('✓ EAS audio initialized');
+    }
+}
+
+function updateEASAudio() {
+    if (!easAudio) return;
+    
+    // Only play once ever per session
+    if (easPlayed) return;
+    
+    // Only trigger in ground view
+    if (!isGroundView) return;
+    
+    // Determine which realm the camera is ACTUALLY in
+    const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+    const inUpperView = isGroundView && !inUnderworldView;
+    
+    // REALM-DEPENDENT: Only check the sun of the realm you're IN
+    // Upper realm camera + upper sun dying = trigger
+    // Underworld camera + underworld sun dying = trigger
+    // Upper realm camera + underworld sun dying = NO trigger (you can't see it)
+    // Underworld camera + upper sun dying = NO trigger (you can't see it)
+    
+    let shouldTrigger = false;
+    
+    if (inUpperView && SUN_BRIGHTNESS < EAS_BRIGHTNESS_THRESHOLD) {
+        shouldTrigger = true;
+    }
+    
+    if (inUnderworldView && USUN_BRIGHTNESS < EAS_BRIGHTNESS_THRESHOLD) {
+        shouldTrigger = true;
+    }
+    
+    if (shouldTrigger && !easTriggered) {
+        easTriggered = true;
+        
+        easAudio.play()
+            .then(() => {
+                easPlayed = true;
+            })
+            .catch(e => {
+                easTriggered = false; // Allow retry if blocked
+            });
+    }
+}
+
 function playReignitionSound(realm) {
     if (!reignitionAudio) {
         return;
@@ -4735,6 +4794,7 @@ activeLightningBolts.push({
     initFimbulwinterAudio();
     initScreamingAudio();
     initReignitionAudio();
+    initEASAudio();
     createStarAxis();
     createGeometry();
     createStarfield();
@@ -5960,6 +6020,7 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             updateLowerFimbulwinter();
             updateFimbulwinterAudio();
             updateScreamingAudio();
+            updateEASAudio();
            
     // Fade stars and nebulae during Fimbulwinter - INDEPENDENT HEMISPHERES
     if (starfieldMaterial) {
@@ -6062,5 +6123,4 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
     </script>
 </body>
 </html>
-
 
