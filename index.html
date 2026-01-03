@@ -474,6 +474,14 @@ let fimbulwinterAudioVolume = 0;
 const FIMBULWINTER_AUDIO_THRESHOLD = 0.5; // Sun brightness below this triggers audio
 let fimbulwinterAudioDelayTimer = null;
 
+// Slider Cold System - Katy shivers when sun dims on UI
+let sliderColdAudio;
+let sliderColdPlaying = false;
+let sliderColdVolume = 0;
+const SLIDER_COLD_THRESHOLD = 0.6; // Sun brightness slider below this = cold
+let sliderColdShiverIntensity = 0;
+const SLIDER_COLD_SHIVER_MAX = 15; // Camera shake intensity
+
 // Screaming audio system (apocalyptic terror)
 let screamingAudio;
 let screamingPlayed = 0;
@@ -2361,17 +2369,31 @@ function updateFimbulwinterAudio() {
     const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
     const inUpperView = isGroundView && !inUnderworldView;
     
+    // Check if at edge (Niflheim cold)
+    const atEdge = isEdgeView || isUnderworldEdgeView;
+    
     // Only check the sun in the realm we're actually viewing
     let shouldPlay = false;
     let targetVolume = 0;
     
-    if (inUpperView && SUN_BRIGHTNESS < FIMBULWINTER_AUDIO_THRESHOLD) {
-        // Upper realm - check upper sun
+    // Edge view - always cold at Niflheim (10 second delay before shivering)
+    if (atEdge) {
+        const edgeTime = isEdgeView ? (Date.now() - upperEdgeViewStartTime) : (Date.now() - underEdgeViewStartTime);
+        const EDGE_SHIVER_DELAY = 10000; // 10 seconds before Katy starts shivering
+        
+        if (edgeTime > EDGE_SHIVER_DELAY) {
+            shouldPlay = true;
+            // Volume builds over 5 seconds AFTER the delay, caps at 0.8
+            const timeSinceDelay = edgeTime - EDGE_SHIVER_DELAY;
+            targetVolume = Math.min(0.8, timeSinceDelay / 5000);
+        }
+    }
+    // Fimbulwinter - sun is dying
+    else if (inUpperView && (SUN_BRIGHTNESS < FIMBULWINTER_AUDIO_THRESHOLD || displayedSunBrightness < 0.6)) {
         shouldPlay = true;
         const intensity = (FIMBULWINTER_AUDIO_THRESHOLD - SUN_BRIGHTNESS) / FIMBULWINTER_AUDIO_THRESHOLD;
         targetVolume = Math.min(1, intensity * 1.5);
     } else if (inUnderworldView && USUN_BRIGHTNESS < FIMBULWINTER_AUDIO_THRESHOLD) {
-        // Underworld - check underworld sun
         shouldPlay = true;
         const intensity = (FIMBULWINTER_AUDIO_THRESHOLD - USUN_BRIGHTNESS) / FIMBULWINTER_AUDIO_THRESHOLD;
         targetVolume = Math.min(1, intensity * 1.5);
@@ -2383,8 +2405,14 @@ function updateFimbulwinterAudio() {
         targetVolume = 0;
     }
     
-    // Start delay timer when conditions first met
-    if (targetVolume > 0 && !fimbulwinterAudioPlaying && !fimbulwinterAudioDelayTimer) {
+    // Start playing immediately for edge views (no delay)
+    if (atEdge && targetVolume > 0 && !fimbulwinterAudioPlaying) {
+        fimbulwinterAudio.play().then(() => {
+            fimbulwinterAudioPlaying = true;
+        }).catch(e => {});
+    }
+    // Start delay timer for Fimbulwinter (not edge)
+    else if (!atEdge && targetVolume > 0 && !fimbulwinterAudioPlaying && !fimbulwinterAudioDelayTimer) {
         fimbulwinterAudioDelayTimer = setTimeout(() => {
             fimbulwinterAudio.play()
                 .then(() => {
@@ -2402,11 +2430,11 @@ function updateFimbulwinterAudio() {
     
     // Only adjust volume AFTER audio is actually playing
     if (fimbulwinterAudioPlaying) {
-        const volumeSpeed = 0.01;
+        const volumeSpeed = atEdge ? 0.02 : 0.01; // Faster ramp for edge
         if (fimbulwinterAudioVolume < targetVolume) {
             fimbulwinterAudioVolume = Math.min(targetVolume, fimbulwinterAudioVolume + volumeSpeed);
         } else if (fimbulwinterAudioVolume > targetVolume) {
-            fimbulwinterAudioVolume = Math.max(targetVolume, fimbulwinterAudioVolume - volumeSpeed * 0.3);
+            fimbulwinterAudioVolume = Math.max(targetVolume, fimbulwinterAudioVolume - volumeSpeed * 0.5);
         }
         
         fimbulwinterAudio.volume = fimbulwinterAudioVolume;
@@ -2420,7 +2448,6 @@ function updateFimbulwinterAudio() {
         }
     }
 }
-
 function updateScreamingAudio() {
     if (!screamingAudio) return;
     
@@ -2479,6 +2506,70 @@ function updateScreamingAudio() {
     if (!shouldScream && screamingDelayTimer && !screamingCurrentlyPlaying) {
         clearTimeout(screamingDelayTimer);
         screamingDelayTimer = null;
+    }
+}
+
+function updateSliderCold() {
+    if (!sliderColdAudio) return;
+    
+    // Check if either sun is below threshold (based on which realm we're viewing)
+    const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+    const inUpperView = isGroundView && !inUnderworldView;
+    
+    let sunIsCold = false;
+    let coldIntensity = 0;
+    
+    // Upper realm - check upper sun
+    if (inUpperView && SUN_BRIGHTNESS < SLIDER_COLD_THRESHOLD) {
+        sunIsCold = true;
+        coldIntensity = (SLIDER_COLD_THRESHOLD - SUN_BRIGHTNESS) / SLIDER_COLD_THRESHOLD;
+    }
+    
+    // Underworld - check underworld sun
+    if (inUnderworldView && USUN_BRIGHTNESS < SLIDER_COLD_THRESHOLD) {
+        sunIsCold = true;
+        coldIntensity = (SLIDER_COLD_THRESHOLD - USUN_BRIGHTNESS) / SLIDER_COLD_THRESHOLD;
+    }
+    
+    // Must be in ground view
+    if (!isGroundView) {
+        sunIsCold = false;
+        coldIntensity = 0;
+    }
+    
+    // Target volume based on how cold it is
+    let targetVolume = sunIsCold ? Math.min(1, coldIntensity * 1.5) : 0;
+    
+    // Start audio if cold and not playing
+    if (targetVolume > 0 && !sliderColdPlaying) {
+        sliderColdAudio.play().then(() => {
+            sliderColdPlaying = true;
+        }).catch(e => {});
+    }
+    
+    // Smooth volume transition
+    const volumeSpeed = 0.02;
+    if (sliderColdVolume < targetVolume) {
+        sliderColdVolume = Math.min(targetVolume, sliderColdVolume + volumeSpeed);
+    } else if (sliderColdVolume > targetVolume) {
+        sliderColdVolume = Math.max(targetVolume, sliderColdVolume - volumeSpeed * 0.5);
+    }
+    
+    sliderColdAudio.volume = sliderColdVolume;
+    
+    // Stop if silent
+    if (sliderColdVolume <= 0.01 && targetVolume <= 0 && sliderColdPlaying) {
+        sliderColdAudio.pause();
+        sliderColdAudio.currentTime = 0;
+        sliderColdPlaying = false;
+        sliderColdVolume = 0;
+    }
+    
+    // Camera shiver intensity
+    if (sunIsCold) {
+        sliderColdShiverIntensity = coldIntensity * SLIDER_COLD_SHIVER_MAX;
+    } else {
+        sliderColdShiverIntensity = Math.max(0, sliderColdShiverIntensity - 0.5);
     }
 }
 
@@ -2638,7 +2729,7 @@ function updateScreamingAudio() {
     }
 }
 
-    function updateUpperEdgeCold() {
+function updateUpperEdgeCold() {
     const snowCanvas = document.getElementById('upper-snow-canvas');
     const frostCanvas = document.getElementById('upper-frost-canvas');
     const snowCtx = snowCanvas.getContext('2d');
@@ -2656,6 +2747,15 @@ function updateScreamingAudio() {
             frostCtx.clearRect(0, 0, frostCanvas.width, frostCanvas.height);
         }
         return;
+    }
+    
+    // Edge cold audio - Katy shivers at Niflheim's border
+    if (fimbulwinterAudio && fimbulwinterAudioPlaying) {
+        const elapsed = Date.now() - upperEdgeViewStartTime;
+        // Volume builds over 5 seconds, caps at 0.7
+        const targetVolume = Math.min(0.7, elapsed / 5000);
+        fimbulwinterAudioVolume += (targetVolume - fimbulwinterAudioVolume) * 0.02;
+        fimbulwinterAudio.volume = fimbulwinterAudioVolume;
     }
    
     // === SNOW UPDATE ===
@@ -2708,7 +2808,7 @@ function updateScreamingAudio() {
     }
 }
 
-    function updateUnderEdgeCold() {
+function updateUnderEdgeCold() {
     const snowCanvas = document.getElementById('under-snow-canvas');
     const frostCanvas = document.getElementById('under-frost-canvas');
     const snowCtx = snowCanvas.getContext('2d');
@@ -2726,6 +2826,15 @@ function updateScreamingAudio() {
             frostCtx.clearRect(0, 0, frostCanvas.width, frostCanvas.height);
         }
         return;
+    }
+    
+    // Edge cold audio - Katy shivers at underworld Niflheim border
+    if (fimbulwinterAudio && fimbulwinterAudioPlaying) {
+        const elapsed = Date.now() - underEdgeViewStartTime;
+        // Volume builds over 5 seconds, caps at 0.7
+        const targetVolume = Math.min(0.7, elapsed / 5000);
+        fimbulwinterAudioVolume += (targetVolume - fimbulwinterAudioVolume) * 0.02;
+        fimbulwinterAudio.volume = fimbulwinterAudioVolume;
     }
    
     // === SNOW UPDATE ===
@@ -2889,28 +2998,54 @@ function updateScreamingAudio() {
     }
 }
 
-    function startUpperEdgeCold() {
+function startUpperEdgeCold() {
     upperEdgeSnowActive = true;
     upperEdgeViewStartTime = Date.now();
     upperSnowflakes = [];
+    
+    // Start Katy shivering at the edge of the world
+    if (fimbulwinterAudio && !fimbulwinterAudioPlaying) {
+        fimbulwinterAudio.play().then(() => {
+            fimbulwinterAudioPlaying = true;
+            fimbulwinterAudioVolume = 0;
+        }).catch(e => {});
+    }
 }
 
-    function stopUpperEdgeCold() {
+function stopUpperEdgeCold() {
     upperEdgeSnowActive = false;
     upperShiverIntensity = 0;
     // Frost will fade in the update function
+    
+    // Fade out Katy's shivering (unless still in underworld edge)
+    if (!underEdgeSnowActive && fimbulwinterAudioPlaying) {
+        // Let updateFimbulwinterAudio handle the fade-out
+    }
 }
 
-    function startUnderEdgeCold() {
+function startUnderEdgeCold() {
     underEdgeSnowActive = true;
     underEdgeViewStartTime = Date.now();
     underSnowflakes = [];
+    
+    // Start Katy shivering at the underworld edge
+    if (fimbulwinterAudio && !fimbulwinterAudioPlaying) {
+        fimbulwinterAudio.play().then(() => {
+            fimbulwinterAudioPlaying = true;
+            fimbulwinterAudioVolume = 0;
+        }).catch(e => {});
+    }
 }
 
-    function stopUnderEdgeCold() {
+function stopUnderEdgeCold() {
     underEdgeSnowActive = false;
     underShiverIntensity = 0;
     // Frost will fade in the update function
+    
+    // Fade out Katy's shivering (unless still in upper edge)
+    if (!upperEdgeSnowActive && fimbulwinterAudioPlaying) {
+        // Let updateFimbulwinterAudio handle the fade-out
+    }
 }
 
     function initFimbulwinterFrost() {
@@ -3427,6 +3562,15 @@ function playReignitionSound(realm) {
     audioClone.onended = () => {
         audioClone.remove();
     };
+}
+
+function initSliderColdAudio() {
+    sliderColdAudio = document.getElementById('fimbulwinter-audio');
+    if (sliderColdAudio) {
+        // We'll create a CLONE so it can play independently
+        sliderColdAudio = sliderColdAudio.cloneNode(true);
+        sliderColdAudio.volume = 0;
+    }
 }
 
 function initFimbulwinterAudio() {
@@ -4349,10 +4493,34 @@ activeLightningBolts.push({
                 const moonGlowFade = Math.min(1, Math.max(0, (displayedMoonBrightness - 0.1) / 0.4));
                 moonGlow.visible = displayedMoonBrightness > 0.1;
                 moonGlow.material.opacity = moonGlowOpacity * 0.6 * combinedMoonFactor * moonGlowFade;
+                
+                // Blood moon glow - shift color toward red when sun is dying
+                if (bloodRedFactor > 0) {
+                    moonGlow.material.color.setRGB(1, 0.3 * (1 - bloodRedFactor), 0.3 * (1 - bloodRedFactor));
+                } else {
+                    moonGlow.material.color.setRGB(0.33, 0.47, 0.93); // Original blue: 0x5577ee
+                }
 
                 moonHalo.position.copy(moonMesh.position);
                 moonHalo.visible = displayedMoonBrightness > 0.1;
                 moonHalo.material.opacity = moonHaloOpacity * 1.4 * combinedMoonFactor * moonGlowFade;
+                
+                // Blood moon halo - deep crimson corona
+                if (bloodRedFactor > 0) {
+                    moonHalo.material.color.setRGB(0.8, 0.15 * (1 - bloodRedFactor), 0.15 * (1 - bloodRedFactor));
+                } else {
+                    moonHalo.material.color.setRGB(0.27, 0.4, 0.87); // Original blue: 0x4466dd
+                }
+                
+                // Blood moon light emission - crimson light floods the realm
+                if (bloodRedFactor > 0) {
+                    const bloodR = 0.8 + bloodRedFactor * 0.2;
+                    const bloodG = 0.2 * (1 - bloodRedFactor);
+                    const bloodB = 0.2 * (1 - bloodRedFactor);
+                    moonLight.color.setRGB(bloodR, bloodG, bloodB);
+                } else {
+                    moonLight.color.setHex(0x0033ff); // Original blue
+                }
                
     moonLight.position.copy(moonMesh.position);
 
@@ -4371,11 +4539,20 @@ activeLightningBolts.push({
     moonIntensityBoost = 1.0 + (sharpFlicker * flickerDecay * 7.0);
     // Radius expands up to 2x during peaks
     moonRadiusMultiplier = 1.0 + (sharpFlicker * flickerDecay * 1.0);
+    
+    moonLight.distance = MOON_LIGHT_RADIUS * moonRadiusMultiplier;
 }
 
     const baseMoonIntensity = displayedMoonBrightness > 0.2 ? (realisticLighting ? moonEffectiveBrightness * moonFlickerMultiplier * 8 * combinedMoonFactor : moonEffectiveBrightness * moonFlickerMultiplier * 4 * combinedMoonFactor) : 0;
     moonLight.intensity = baseMoonIntensity * moonIntensityBoost;
-    moonLight.color.setHex(0x0033ff);
+    
+    // Blood moon ground light - crimson when sun is dying, blue when normal
+    if (bloodRedFactor > 0) {
+        moonLight.color.setRGB(0.9, 0.1 * (1 - bloodRedFactor), 0.1 * (1 - bloodRedFactor));
+    } else {
+        moonLight.color.setHex(0x0033ff);
+    }
+    
     moonLight.distance = MOON_LIGHT_RADIUS * moonRadiusMultiplier;
             } else if (moonMesh) {
                 moonMesh.visible = false;
@@ -4863,6 +5040,7 @@ activeLightningBolts.push({
     initUpperCO2System();
     initLightning();
     initFimbulwinterAudio();
+    initSliderColdAudio();
     initScreamingAudio();
     initReignitionAudio();
     initEASAudio();
@@ -5442,7 +5620,7 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
                 startUpperEdgeCold();
-                document.getElementById('edge-view-button').textContent = 'Exit Upper Plane Edge View';
+                document.getElementById('edge-view-button').textContent = 'Exit Upper Mid Plane Edge View';
                 document.getElementById('edge-view-button').classList.add('active');
             } else if (!isCurrentlyEdge) {
                 previousGroundPosition = getCurrentViewPosition();
@@ -6091,6 +6269,7 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             updateUpperFimbulwinter();
             updateLowerFimbulwinter();
             updateFimbulwinterAudio();
+            updateSliderCold();
             updateScreamingAudio();
             updateEASAudio();
             updateChurchAudio();
@@ -6167,10 +6346,13 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             // Luminary views only get Fimbul shiver, not edge shiver
             const activeShiver = isLuminaryView ? fimbulShiver : Math.max(edgeShiver, fimbulShiver);
            
-            if (activeShiver > 0 && isGroundView) {
-                camera.position.x += (Math.random() - 0.5) * activeShiver;
-                camera.position.y += (Math.random() - 0.5) * activeShiver * 0.5;
-                camera.position.z += (Math.random() - 0.5) * activeShiver;
+                        // Combine all shiver sources
+            const totalShiver = activeShiver + sliderColdShiverIntensity;
+            
+            if (totalShiver > 0 && isGroundView) {
+                camera.position.x += (Math.random() - 0.5) * totalShiver;
+                camera.position.y += (Math.random() - 0.5) * totalShiver * 0.5;
+                camera.position.z += (Math.random() - 0.5) * totalShiver;
             }
             
             updateCameraInfo();
