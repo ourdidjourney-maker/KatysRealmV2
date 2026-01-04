@@ -2743,22 +2743,23 @@ function updateFimbulwinterFrost() {
     // Blizzard frost is whiter, Fimbulwinter frost is darker
     const blizzardRatio = blizzardFrost / Math.max(0.01, intensity);
     
-    let frostColor, iceColor;
-    if (inUnderworldView) {
-        // Underworld - blend between blizzard white-blue and fimbul dark blue
-        const r = Math.round(100 + blizzardRatio * 80);
-        const g = Math.round(140 + blizzardRatio * 70);
-        const b = Math.round(200 + blizzardRatio * 40);
-        frostColor = `rgba(${r}, ${g}, ${b},`;
-        iceColor = `rgba(${r - 40}, ${g - 40}, ${b - 20},`;
-    } else {
-        // Upper realm - blend between blizzard white and fimbul dark
-        const r = Math.round(180 + blizzardRatio * 75);
-        const g = Math.round(210 + blizzardRatio * 45);
-        const b = Math.round(240 + blizzardRatio * 15);
-        frostColor = `rgba(${r}, ${g}, ${b},`;
-        iceColor = `rgba(${r - 30}, ${g - 20}, ${b - 10},`;
-    }
+// Color tint - DARK ice for camera lens frost
+let frostColor, iceColor;
+if (inUnderworldView) {
+    // Underworld - near-black ice
+    const r = Math.round(15 + blizzardRatio * 15);    // 15-30
+    const g = Math.round(25 + blizzardRatio * 15);    // 25-40
+    const b = Math.round(45 + blizzardRatio * 15);    // 45-60
+    frostColor = `rgba(${r}, ${g}, ${b},`;
+    iceColor = `rgba(${r - 5}, ${g - 5}, ${b - 5},`;
+} else {
+    // Upper realm - dark blue-black ice
+    const r = Math.round(20 + blizzardRatio * 20);    // 20-40
+    const g = Math.round(30 + blizzardRatio * 20);    // 30-50
+    const b = Math.round(50 + blizzardRatio * 20);    // 50-70
+    frostColor = `rgba(${r}, ${g}, ${b},`;
+    iceColor = `rgba(${r - 5}, ${g - 5}, ${b - 5},`;
+}
    
     // Corner frost gradients - creep from corners like edge view
     let gradient;
@@ -3012,9 +3013,9 @@ function updateUnderEdgeCold() {
     const h = canvas.height;
     const cornerRadius = Math.min(w, h) * 1.2 * intensity;
    
-    // Color tint - upper is white-blue, underworld is deeper blue
-    const frostColor = isUnderworld ? 'rgba(100, 140, 200,' : 'rgba(180, 210, 240,';
-    const iceColor = isUnderworld ? 'rgba(60, 100, 180,' : 'rgba(150, 190, 230,';
+// Color tint - upper is dark ice, underworld is near-black ice
+const frostColor = isUnderworld ? 'rgba(20, 30, 50,' : 'rgba(30, 40, 60,';
+const iceColor = isUnderworld ? 'rgba(10, 20, 40,' : 'rgba(20, 30, 50,';
    
     // Draw corner frost gradients
     // Top-left
@@ -7142,4 +7143,3 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
     </script>
 </body>
 </html>
-
