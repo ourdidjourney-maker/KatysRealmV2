@@ -72,6 +72,8 @@
 <canvas id="fimbul-frost-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 51;"></canvas>
 <canvas id="lens-flare-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 52;"></canvas>
 <canvas id="lightning-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 53;"></canvas>
+<canvas id="blizzard-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 54;"></canvas>
+<canvas id="lower-blizzard-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 54;"></canvas>
 <audio id="fimbulwinter-audio" loop preload="auto">
     <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/18a3623be6c29516ed31840fccf2b7dc0f2a0c71/KatyShivering.mp3" type="audio/mpeg">
 </audio>
@@ -92,6 +94,12 @@
 </audio>
 <audio id="lower-lightning-audio" preload="auto">
     <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/c9b444d389090b116af6e0190ccdb03e29584975/OMG2.mp3" type="audio/mpeg">
+</audio>
+<audio id="blizzard-audio" loop preload="auto">
+    <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/36d7f52c609e31665297df3ba0cebb8089807ae4/SnowStormFinal.mp3" type="audio/mpeg">
+</audio>
+<audio id="lower-blizzard-audio" loop preload="auto">
+    <source src="https://raw.githubusercontent.com/ourdidjourney-maker/KatysRealmV2/36d7f52c609e31665297df3ba0cebb8089807ae4/SnowStormFinal.mp3" type="audio/mpeg">
 </audio>
    
 <div id="grid-tooltip" style="position: absolute; display: none; background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(30,25,0,0.9) 100%); border: 1px solid #ffdd44; border-radius: 6px; padding: 6px 10px; font-size: 9px; pointer-events: none; z-index: 1000; min-width: 120px; transform: perspective(300px) rotateY(-15deg) rotateX(5deg) skewY(-2deg); box-shadow: 5px 5px 12px rgba(255,221,68,0.4), -2px -2px 8px rgba(255,221,68,0.2), inset 0 0 15px rgba(255,221,68,0.05); border-left: 4px solid #ffdd44;">
@@ -284,6 +292,8 @@
         <button id="toggle-axes-button">Hide Axes</button>
         <button id="toggle-lens-flare-button">Lens Flare</button>
         <button id="toggle-ripple-button">Gulf Ripple</button>
+        <button id="toggle-upper-blizzard-button">Upper Blizzard</button>
+        <button id="toggle-lower-blizzard-button">Lower Blizzard</button>
         <button id="random-lightning-button">Random Lightning</button>
         <button id="toggle-strata-grid-button">Strata Coordinates</button>
         <button id="toggle-shell-grid-button">Kayleigh Coordinates</button>
@@ -380,6 +390,9 @@ let lowerCO2StartTime = 0;
 let lowerCO2Exhausted = false;
 let upperCO2StartTime = 0;
 let upperCO2Exhausted = false;
+let upperCO2DelayStartTime = 0;
+let lowerCO2DelayStartTime = 0;
+const CO2_DELAY = 30000; // 30 seconds before fallout begins
 // Upper Hemisphere CO2 Fallout System
 let upperCO2Particles = [];
 let upperCO2Geometry, upperCO2Material, upperCO2Points;
@@ -430,6 +443,7 @@ let uMoonFlickerStartTime = 0;
 let uMoonWasOff = false;
 const UMOON_FLICKER_DURATION = 4500;
 const UMOON_OFF_THRESHOLD = 0.3;
+
 // ============ EDGE COLD SYSTEM - NIFLHEIM ============
 
 // Upper Edge View
@@ -493,7 +507,7 @@ let sliderColdStartTime = 0; // Timer for delayed shiver start
 let screamingAudio;
 let screamingPlayed = 0;
 const SCREAMING_MAX_PLAYS = 1;
-const SCREAMING_BRIGHTNESS_THRESHOLD = 0.25;
+const SCREAMING_BRIGHTNESS_THRESHOLD = 0.15;
 let screamingCooldown = false;
 let screamingDelayTimer = null;
 let screamingCurrentlyPlaying = false;
@@ -516,6 +530,57 @@ const CHURCH_AUDIO_MIN_DISTANCE = 200; // Distance at which music is full volume
 // Random Lightning Audio System - Realm Specific
 let upperLightningAudio;
 let lowerLightningAudio;
+
+// ============ UPPER BLIZZARD SYSTEM ============
+let blizzardCanvas, blizzardCtx;
+let blizzardAudio;
+let blizzardAudioPlaying = false;
+let blizzardAudioVolume = 0;
+
+// ============ LOWER BLIZZARD SYSTEM ============
+let lowerBlizzardCanvas, lowerBlizzardCtx;
+let lowerBlizzardAudio;
+let lowerBlizzardAudioPlaying = false;
+let lowerBlizzardAudioVolume = 0;
+
+// Blizzard state
+let upperBlizzardActive = false;
+let upperBlizzardIntensity = 0;
+let upperBlizzardTargetIntensity = 0;
+let sunDimStartTime = 0;
+let sunWasDimmed = false;
+let upperBlizzardStartTime = 0;
+
+// Blizzard thresholds
+const BLIZZARD_SUN_THRESHOLD = 0.6;
+const BLIZZARD_DELAY = 30000;
+const BLIZZARD_FADE_IN_TIME = 10000;
+const BLIZZARD_FADE_OUT_TIME = 30000;
+
+// Convection death - sun too dim = no storms
+const BLIZZARD_SUN_DEAD_THRESHOLD = 0.15;
+const BLIZZARD_CONVECTION_DEATH_DELAY = 20000; // 20 seconds after sun dies
+let upperConvectionDeathTime = 0;
+let upperConvectionDead = false;
+let lowerConvectionDeathTime = 0;
+let lowerConvectionDead = false;
+
+// Blizzard particles
+let blizzardParticles = [];
+let lowerBlizzardParticles = [];
+const BLIZZARD_MAX_PARTICLES = 5000; //Snowstorm Snowflakes
+
+// Lower Blizzard state
+let lowerBlizzardActive = false;
+let lowerBlizzardIntensity = 0;
+let lowerBlizzardTargetIntensity = 0;
+let uSunDimStartTime = 0;
+let uSunWasDimmed = false;
+let lowerBlizzardStartTime = 0;
+
+// Blizzard enable/disable toggles
+let upperBlizzardEnabled = true;
+let lowerBlizzardEnabled = true;
 
 // Fimbulwinter shiver (camera shake from cold)
 let upperFimbulShiverIntensity = 0;
@@ -2626,19 +2691,35 @@ function updateSliderCold() {
     }
 }
 
-    function updateFimbulwinterFrost() {
+function updateFimbulwinterFrost() {
+    if (!fimbulFrostCtx || !fimbulFrostCanvas) return;
+    
     if (!fimbulFrostCtx || !fimbulFrostCanvas) return;
    
-    // No frost in orbit view
-    if (!isGroundView) {
-        fimbulFrostCtx.clearRect(0, 0, fimbulFrostCanvas.width, fimbulFrostCanvas.height);
-        return;
-    }
-   
-    // Determine which intensity to use based on current view
-    // Underworld views use lower intensity, all others use upper
+    // Determine which realm we're in
     const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
-    const intensity = inUnderworldView ? lowerFimbulwinterIntensity : upperFimbulwinterIntensity;
+    
+// Get base Fimbulwinter intensity (dying sun)
+    const baseFimbul = inUnderworldView ? lowerFimbulwinterIntensity : upperFimbulwinterIntensity;
+    
+    // Get blizzard intensity - but ONLY if blizzard is actually active AND convection alive
+    let rawBlizzardFrost = 0;
+    if (inUnderworldView) {
+        // Underworld - no frost if convection dead OR blizzard fading out
+        if (!lowerConvectionDead && lowerBlizzardActive && lowerBlizzardIntensity > 0.05) {
+            rawBlizzardFrost = lowerBlizzardIntensity;
+        }
+    } else {
+        // Upper realm - no frost if convection dead OR blizzard fading out
+        if (!upperConvectionDead && upperBlizzardActive && upperBlizzardIntensity > 0.05) {
+            rawBlizzardFrost = upperBlizzardIntensity;
+        }
+    }
+    
+    const blizzardFrost = rawBlizzardFrost * 0.05; // Only 25% contribution - frost creeps slowly
+    
+    // Combined intensity - blizzard adds to frost effect
+    const intensity = Math.min(1.0, baseFimbul + blizzardFrost * 0.7);
    
     // Clear if no effect
     if (intensity <= 0) {
@@ -2651,20 +2732,38 @@ function updateSliderCold() {
     const w = fimbulFrostCanvas.width;
     const h = fimbulFrostCanvas.height;
    
-    // Fimbulwinter frost is MORE aggressive than edge frost
-    // It covers the entire screen, not just edges
-    const cornerRadius = Math.min(w, h) * 1.5 * intensity;
+    // ============ EDGE-STYLE CREEPING FROST ============
+    // Same style as edge plane view - corners and edges creep inward
+    
+    const cornerRadius = Math.min(w, h) * 1.2 * intensity;
    
-    // Color tint - dark frost (no light = dark ice)
-    const frostColor = inUnderworldView ? 'rgba(20, 25, 45,' : 'rgba(30, 35, 50,';
-    const iceColor = inUnderworldView ? 'rgba(15, 20, 40,' : 'rgba(25, 30, 45,';
+    // Color tint based on realm and source
+    // Blizzard frost is whiter, Fimbulwinter frost is darker
+    const blizzardRatio = blizzardFrost / Math.max(0.01, intensity);
+    
+    let frostColor, iceColor;
+    if (inUnderworldView) {
+        // Underworld - blend between blizzard white-blue and fimbul dark blue
+        const r = Math.round(100 + blizzardRatio * 80);
+        const g = Math.round(140 + blizzardRatio * 70);
+        const b = Math.round(200 + blizzardRatio * 40);
+        frostColor = `rgba(${r}, ${g}, ${b},`;
+        iceColor = `rgba(${r - 40}, ${g - 40}, ${b - 20},`;
+    } else {
+        // Upper realm - blend between blizzard white and fimbul dark
+        const r = Math.round(180 + blizzardRatio * 75);
+        const g = Math.round(210 + blizzardRatio * 45);
+        const b = Math.round(240 + blizzardRatio * 15);
+        frostColor = `rgba(${r}, ${g}, ${b},`;
+        iceColor = `rgba(${r - 30}, ${g - 20}, ${b - 10},`;
+    }
    
-    // Corner frost gradients - larger and more intense than edge frost
+    // Corner frost gradients - creep from corners like edge view
     let gradient;
    
     // Top-left
     gradient = fimbulFrostCtx.createRadialGradient(0, 0, 0, 0, 0, cornerRadius);
-    gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
+    gradient.addColorStop(0, frostColor + (intensity * 0.85) + ')');
     gradient.addColorStop(0.4, frostColor + (intensity * 0.5) + ')');
     gradient.addColorStop(0.7, frostColor + (intensity * 0.2) + ')');
     gradient.addColorStop(1, frostColor + '0)');
@@ -2673,7 +2772,7 @@ function updateSliderCold() {
    
     // Top-right
     gradient = fimbulFrostCtx.createRadialGradient(w, 0, 0, w, 0, cornerRadius);
-    gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
+    gradient.addColorStop(0, frostColor + (intensity * 0.85) + ')');
     gradient.addColorStop(0.4, frostColor + (intensity * 0.5) + ')');
     gradient.addColorStop(0.7, frostColor + (intensity * 0.2) + ')');
     gradient.addColorStop(1, frostColor + '0)');
@@ -2682,7 +2781,7 @@ function updateSliderCold() {
    
     // Bottom-left
     gradient = fimbulFrostCtx.createRadialGradient(0, h, 0, 0, h, cornerRadius);
-    gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
+    gradient.addColorStop(0, frostColor + (intensity * 0.85) + ')');
     gradient.addColorStop(0.4, frostColor + (intensity * 0.5) + ')');
     gradient.addColorStop(0.7, frostColor + (intensity * 0.2) + ')');
     gradient.addColorStop(1, frostColor + '0)');
@@ -2691,94 +2790,53 @@ function updateSliderCold() {
    
     // Bottom-right
     gradient = fimbulFrostCtx.createRadialGradient(w, h, 0, w, h, cornerRadius);
-    gradient.addColorStop(0, frostColor + (intensity * 0.9) + ')');
+    gradient.addColorStop(0, frostColor + (intensity * 0.85) + ')');
     gradient.addColorStop(0.4, frostColor + (intensity * 0.5) + ')');
     gradient.addColorStop(0.7, frostColor + (intensity * 0.2) + ')');
     gradient.addColorStop(1, frostColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(w - cornerRadius, h - cornerRadius, cornerRadius, cornerRadius);
    
-    // Edge frost strips - thicker than edge view frost
-    const edgeWidth = 300 * intensity;
+    // Edge frost strips - thicker with higher intensity
+    const edgeWidth = 250 * intensity;
    
     // Top edge
     gradient = fimbulFrostCtx.createLinearGradient(0, 0, 0, edgeWidth);
-    gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
+    gradient.addColorStop(0, iceColor + (intensity * 0.6) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(0, 0, w, edgeWidth);
    
     // Bottom edge
     gradient = fimbulFrostCtx.createLinearGradient(0, h, 0, h - edgeWidth);
-    gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
+    gradient.addColorStop(0, iceColor + (intensity * 0.6) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(0, h - edgeWidth, w, edgeWidth);
    
     // Left edge
     gradient = fimbulFrostCtx.createLinearGradient(0, 0, edgeWidth, 0);
-    gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
+    gradient.addColorStop(0, iceColor + (intensity * 0.6) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(0, 0, edgeWidth, h);
    
     // Right edge
     gradient = fimbulFrostCtx.createLinearGradient(w, 0, w - edgeWidth, 0);
-    gradient.addColorStop(0, iceColor + (intensity * 0.7) + ')');
+    gradient.addColorStop(0, iceColor + (intensity * 0.6) + ')');
     gradient.addColorStop(1, iceColor + '0)');
     fimbulFrostCtx.fillStyle = gradient;
     fimbulFrostCtx.fillRect(w - edgeWidth, 0, edgeWidth, h);
-   
-    // At high intensity, add center vignette (world is truly dying)
-    if (intensity > 0.5) {
-        const vignetteIntensity = (intensity - 0.5) * 2; // 0 to 1 for intensity 0.5 to 1
+    
+    // At very high intensity (full blizzard), add center vignette
+    if (intensity > 0.7) {
+        const vignetteIntensity = (intensity - 0.7) / 0.3; // 0 to 1 for intensity 0.7 to 1
         gradient = fimbulFrostCtx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w, h) * 0.7);
-        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
-        gradient.addColorStop(1, frostColor + (vignetteIntensity * 0.4) + ')');
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        gradient.addColorStop(0.6, 'rgba(255, 255, 255, 0)');
+        gradient.addColorStop(1, frostColor + (vignetteIntensity * 0.3) + ')');
         fimbulFrostCtx.fillStyle = gradient;
         fimbulFrostCtx.fillRect(0, 0, w, h);
-    }
-   
-    // Ice crystal patterns at higher intensity
-    if (intensity > 0.3) {
-        const crystalCount = Math.floor(intensity * 50);
-        fimbulFrostCtx.strokeStyle = iceColor + (intensity * 0.5) + ')';
-        fimbulFrostCtx.lineWidth = 1;
-       
-        for (let i = 0; i < crystalCount; i++) {
-            // Crystals appear anywhere on screen during Fimbulwinter
-            const cx = Math.random() * w;
-            const cy = Math.random() * h;
-           
-            // Bias toward edges
-            const edgeBias = Math.random();
-            let finalX = cx, finalY = cy;
-            if (edgeBias < 0.6) {
-                // Push toward nearest edge
-                const distToLeft = cx;
-                const distToRight = w - cx;
-                const distToTop = cy;
-                const distToBottom = h - cy;
-                const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
-               
-                if (minDist === distToLeft) finalX = Math.random() * edgeWidth * 2;
-                else if (minDist === distToRight) finalX = w - Math.random() * edgeWidth * 2;
-                else if (minDist === distToTop) finalY = Math.random() * edgeWidth * 2;
-                else finalY = h - Math.random() * edgeWidth * 2;
-            }
-           
-            const size = 5 + Math.random() * 20 * intensity;
-           
-            // 6-point star crystal
-            fimbulFrostCtx.beginPath();
-            for (let j = 0; j < 6; j++) {
-                const angle = (j / 6) * Math.PI * 2;
-                fimbulFrostCtx.moveTo(finalX, finalY);
-                fimbulFrostCtx.lineTo(finalX + Math.cos(angle) * size, finalY + Math.sin(angle) * size);
-            }
-            fimbulFrostCtx.stroke();
-        }
     }
 }
 
@@ -3118,12 +3176,14 @@ function initLowerCO2System() {
     lowerCO2Geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
     lowerCO2Geometry.setAttribute('alpha', new THREE.BufferAttribute(alphas, 1));
     
-            lowerCO2Material = new THREE.ShaderMaterial({
+    lowerCO2Material = new THREE.ShaderMaterial({
         uniforms: {
             uPixelRatio: { value: renderer.getPixelRatio() },
             uOpacity: { value: 0.0 },
             uSunBrightness: { value: 1.5 },
-            uMoonBrightness: { value: 0.8 }
+            uMoonBrightness: { value: 0.8 },
+            uSunColor: { value: new THREE.Vector3(1.0, 0.13, 0.13) },
+            uMoonColor: { value: new THREE.Vector3(0.13, 0.2, 0.67) }
         },
         vertexShader: `
             attribute float size;
@@ -3142,19 +3202,19 @@ function initLowerCO2System() {
             uniform float uOpacity;
             uniform float uSunBrightness;
             uniform float uMoonBrightness;
+            uniform vec3 uSunColor;
+            uniform vec3 uMoonColor;
             void main() {
                 vec2 center = gl_PointCoord - vec2(0.5);
                 float dist = length(center) * 2.0;
                 float core = 1.0 - smoothstep(0.0, 0.5, dist);
                 float alpha = core * 0.5 * vAlpha * uOpacity;
                 vec3 darkColor = vec3(0.02, 0.02, 0.03);
-                vec3 sunColor = vec3(1.0, 0.27, 0.13);
-                vec3 moonColor = vec3(0.2, 0.27, 0.73);
-                float sunFactor = smoothstep(0.15, 0.8, uSunBrightness);
-                float moonFactor = smoothstep(0.15, 0.8, uMoonBrightness);
-                float totalLight = sunFactor + moonFactor * 0.5;
-                vec3 brightColor = (sunColor * sunFactor + moonColor * moonFactor) / max(0.01, sunFactor + moonFactor);
-                vec3 co2Color = mix(darkColor, brightColor, clamp(totalLight, 0.0, 1.0));
+                float sunFactor = uSunBrightness > 0.1 ? smoothstep(0.0, 1.0, uSunBrightness) : 0.0;
+                float moonFactor = uMoonBrightness > 0.1 ? smoothstep(0.0, 1.0, uMoonBrightness) : 0.0;
+                float totalLight = sunFactor + moonFactor;
+                vec3 brightColor = (uSunColor * sunFactor + uMoonColor * moonFactor) / max(0.01, totalLight);
+                vec3 co2Color = mix(darkColor, brightColor, clamp(totalLight * 0.8, 0.1, 1.0));
                 gl_FragColor = vec4(co2Color, alpha);
             }
         `,
@@ -3201,23 +3261,38 @@ function spawnLowerCO2Particle() {
 
 function updateLowerCO2System() {
     // Determine target opacity based on underworld sun brightness
-    if (USUN_BRIGHTNESS <= 0.15) {
-        // Start timer when sun first dies
-        if (lowerCO2StartTime === 0) {
-            lowerCO2StartTime = Date.now();
-            lowerCO2Exhausted = false;
+    // CO2 only triggers at EXTREME low brightness (0.2 or below) with 30s delay
+    if (USUN_BRIGHTNESS <= 0.2) {
+        // Start delay timer when sun first reaches critical level
+        if (lowerCO2DelayStartTime === 0) {
+            lowerCO2DelayStartTime = Date.now();
         }
-        // Check if 2 minutes have passed
-        if (Date.now() - lowerCO2StartTime > CO2_FALLOUT_DURATION) {
-            lowerCO2Exhausted = true;
+        
+        // Check if 30-second delay has passed
+        const delayElapsed = Date.now() - lowerCO2DelayStartTime;
+        if (delayElapsed < CO2_DELAY) {
+            // Still waiting - no CO2 yet
+            lowerCO2TargetOpacity = 0;
+        } else if (USUN_BRIGHTNESS <= 0.15) {
+            // Sun is fully dead AND delay passed - full fallout
+            if (lowerCO2StartTime === 0) {
+                lowerCO2StartTime = Date.now();
+                lowerCO2Exhausted = false;
+            }
+            // Check if 10 minutes have passed (atmosphere exhausted)
+            if (Date.now() - lowerCO2StartTime > CO2_FALLOUT_DURATION) {
+                lowerCO2Exhausted = true;
+            }
+            lowerCO2TargetOpacity = lowerCO2Exhausted ? 0 : 1.0;
+        } else {
+            // Sun between 0.15 and 0.2 AND delay passed - partial fallout
+            lowerCO2TargetOpacity = lowerCO2Exhausted ? 0 : (1.0 - ((USUN_BRIGHTNESS - 0.15) / 0.05));
         }
-        lowerCO2TargetOpacity = lowerCO2Exhausted ? 0 : 1.0;
-    } else if (USUN_BRIGHTNESS <= 0.5) {
-        lowerCO2TargetOpacity = lowerCO2Exhausted ? 0 : (1.0 - ((USUN_BRIGHTNESS - 0.15) / 0.35));
     } else {
-        // Sun is back on - reset timer for next death
+        // Sun is above 0.2 - reset ALL timers
         lowerCO2TargetOpacity = 0;
         lowerCO2StartTime = 0;
+        lowerCO2DelayStartTime = 0;
         lowerCO2Exhausted = false;
     }
     
@@ -3228,9 +3303,17 @@ function updateLowerCO2System() {
         lowerCO2CurrentOpacity = Math.max(lowerCO2TargetOpacity, lowerCO2CurrentOpacity - CO2_FADE_SPEED);
     }
     
-lowerCO2Material.uniforms.uOpacity.value = lowerCO2CurrentOpacity;
+    lowerCO2Material.uniforms.uOpacity.value = lowerCO2CurrentOpacity;
     lowerCO2Material.uniforms.uSunBrightness.value = USUN_BRIGHTNESS;
     lowerCO2Material.uniforms.uMoonBrightness.value = UMOON_BRIGHTNESS;
+    
+    // Get actual luminary colors from the light sources
+    if (underworldSunLight) {
+        lowerCO2Material.uniforms.uSunColor.value.set(underworldSunLight.color.r, underworldSunLight.color.g, underworldSunLight.color.b);
+    }
+    if (underworldMoonLight) {
+        lowerCO2Material.uniforms.uMoonColor.value.set(underworldMoonLight.color.r, underworldMoonLight.color.g, underworldMoonLight.color.b);
+    }
     
     // Spawn new particles when sun is dying (burst spawn to maintain density)
     if (lowerCO2TargetOpacity > 0) {
@@ -3295,7 +3378,9 @@ function initUpperCO2System() {
             uPixelRatio: { value: renderer.getPixelRatio() },
             uOpacity: { value: 0.0 },
             uSunBrightness: { value: 1.5 },
-            uMoonBrightness: { value: 0.8 }
+            uMoonBrightness: { value: 0.8 },
+            uSunColor: { value: new THREE.Vector3(1.0, 0.87, 0.27) },
+            uMoonColor: { value: new THREE.Vector3(0.67, 0.73, 1.0) }
         },
         vertexShader: `
             attribute float size;
@@ -3314,6 +3399,8 @@ function initUpperCO2System() {
             uniform float uOpacity;
             uniform float uSunBrightness;
             uniform float uMoonBrightness;
+            uniform vec3 uSunColor;
+            uniform vec3 uMoonColor;
             void main() {
                 vec2 center = gl_PointCoord - vec2(0.5);
                 float dist = length(center) * 2.0;
@@ -3321,13 +3408,11 @@ function initUpperCO2System() {
                 float glow = 1.0 - smoothstep(0.0, 1.0, dist);
                 float alpha = (core * 0.4 + glow * 0.2) * vAlpha * uOpacity;
                 vec3 darkColor = vec3(0.02, 0.02, 0.03);
-                vec3 sunColor = vec3(1.0, 0.87, 0.27);
-                vec3 moonColor = vec3(0.67, 0.73, 1.0);
-                float sunFactor = smoothstep(0.15, 0.8, uSunBrightness);
-                float moonFactor = smoothstep(0.15, 0.8, uMoonBrightness);
-                float totalLight = sunFactor + moonFactor * 0.5;
-                vec3 brightColor = (sunColor * sunFactor + moonColor * moonFactor) / max(0.01, sunFactor + moonFactor);
-                vec3 co2Color = mix(darkColor, brightColor, clamp(totalLight, 0.0, 1.0));
+                float sunFactor = uSunBrightness > 0.1 ? smoothstep(0.0, 1.0, uSunBrightness) : 0.0;
+                float moonFactor = uMoonBrightness > 0.1 ? smoothstep(0.0, 1.0, uMoonBrightness) : 0.0;
+                float totalLight = sunFactor + moonFactor;
+                vec3 brightColor = (uSunColor * sunFactor + uMoonColor * moonFactor) / max(0.01, totalLight);
+                vec3 co2Color = mix(darkColor, brightColor, clamp(totalLight * 0.8, 0.1, 1.0));
                 gl_FragColor = vec4(co2Color, alpha);
             }
         `,
@@ -3374,23 +3459,38 @@ function spawnUpperCO2Particle() {
 
 function updateUpperCO2System() {
     // Determine target opacity based on upper sun brightness
-    if (SUN_BRIGHTNESS <= 0.15) {
-        // Start timer when sun first dies
-        if (upperCO2StartTime === 0) {
-            upperCO2StartTime = Date.now();
-            upperCO2Exhausted = false;
+    // CO2 only triggers at EXTREME low brightness (0.2 or below) with 30s delay
+    if (SUN_BRIGHTNESS <= 0.3) {
+        // Start delay timer when sun first reaches critical level
+        if (upperCO2DelayStartTime === 0) {
+            upperCO2DelayStartTime = Date.now();
         }
-        // Check if 2 minutes have passed
-        if (Date.now() - upperCO2StartTime > CO2_FALLOUT_DURATION) {
-            upperCO2Exhausted = true;
+        
+        // Check if 30-second delay has passed
+        const delayElapsed = Date.now() - upperCO2DelayStartTime;
+        if (delayElapsed < CO2_DELAY) {
+            // Still waiting - no CO2 yet
+            upperCO2TargetOpacity = 0;
+        } else if (SUN_BRIGHTNESS <= 0.15) {
+            // Sun is fully dead AND delay passed - full fallout
+            if (upperCO2StartTime === 0) {
+                upperCO2StartTime = Date.now();
+                upperCO2Exhausted = false;
+            }
+            // Check if 10 minutes have passed (atmosphere exhausted)
+            if (Date.now() - upperCO2StartTime > CO2_FALLOUT_DURATION) {
+                upperCO2Exhausted = true;
+            }
+            upperCO2TargetOpacity = upperCO2Exhausted ? 0 : 1.0;
+        } else {
+            // Sun between 0.15 and 0.3 AND delay passed - partial fallout
+            upperCO2TargetOpacity = upperCO2Exhausted ? 0 : Math.max(0.1, (1.0 - ((SUN_BRIGHTNESS - 0.15) / 0.15)));
         }
-        upperCO2TargetOpacity = upperCO2Exhausted ? 0 : 1.0;
-    } else if (SUN_BRIGHTNESS <= 0.5) {
-        upperCO2TargetOpacity = upperCO2Exhausted ? 0 : (1.0 - ((SUN_BRIGHTNESS - 0.15) / 0.35));
     } else {
-        // Sun is back on - reset timer for next death
+        // Sun is above 0.2 - reset ALL timers
         upperCO2TargetOpacity = 0;
         upperCO2StartTime = 0;
+        upperCO2DelayStartTime = 0;
         upperCO2Exhausted = false;
     }
     
@@ -3404,6 +3504,14 @@ function updateUpperCO2System() {
     upperCO2Material.uniforms.uOpacity.value = upperCO2CurrentOpacity;
     upperCO2Material.uniforms.uSunBrightness.value = SUN_BRIGHTNESS;
     upperCO2Material.uniforms.uMoonBrightness.value = MOON_BRIGHTNESS;
+    
+    // Get actual luminary colors from the light sources
+    if (sunLight) {
+        upperCO2Material.uniforms.uSunColor.value.set(sunLight.color.r, sunLight.color.g, sunLight.color.b);
+    }
+    if (moonLight) {
+        upperCO2Material.uniforms.uMoonColor.value.set(moonLight.color.r, moonLight.color.g, moonLight.color.b);
+    }
     
     // Spawn new particles when sun is dying (burst spawn to maintain density)
     if (upperCO2TargetOpacity > 0) {
@@ -3492,6 +3600,511 @@ function initLightningAudio() {
     if (lowerLightningAudio) {
         lowerLightningAudio.volume = 0.6;
     }
+}
+
+// ============ BLIZZARD SYSTEM FUNCTIONS ============
+function initBlizzardSystem() {
+    // Upper blizzard canvas
+    blizzardCanvas = document.getElementById('blizzard-canvas');
+    if (blizzardCanvas) {
+        blizzardCanvas.width = window.innerWidth;
+        blizzardCanvas.height = window.innerHeight;
+        blizzardCtx = blizzardCanvas.getContext('2d');
+    }
+    
+    blizzardAudio = document.getElementById('blizzard-audio');
+    if (blizzardAudio) {
+        blizzardAudio.volume = 0;
+    }
+    
+    // Lower blizzard canvas
+    lowerBlizzardCanvas = document.getElementById('lower-blizzard-canvas');
+    if (lowerBlizzardCanvas) {
+        lowerBlizzardCanvas.width = window.innerWidth;
+        lowerBlizzardCanvas.height = window.innerHeight;
+        lowerBlizzardCtx = lowerBlizzardCanvas.getContext('2d');
+    }
+    
+    lowerBlizzardAudio = document.getElementById('lower-blizzard-audio');
+    if (lowerBlizzardAudio) {
+        lowerBlizzardAudio.volume = 0;
+    }
+}
+
+function spawnBlizzardParticle() {
+    // 80% from right (wind blowing left), 20% from top
+    const fromRight = Math.random() < 0.8;
+    
+    // Depth layers - some close (big/fast), some far (small/slow)
+    const depth = Math.random();
+    const depthScale = 0.3 + depth * 0.7; // 0.3 to 1.0
+    
+    return {
+        x: fromRight ? window.innerWidth + 10 : Math.random() * window.innerWidth,
+        y: fromRight ? Math.random() * window.innerHeight : -10,
+        size: (1 + Math.random() * 2) * depthScale, // Smaller particles: 0.3 to 3
+        speedX: -(18 + Math.random() * 12) * depthScale, // Faster horizontal
+        speedY: (1 + Math.random() * 2) * depthScale, // Slower vertical
+        opacity: (0.3 + Math.random() * 0.5) * depthScale,
+        wobbleOffset: Math.random() * Math.PI * 2,
+        wobbleSpeed: 0.03 + Math.random() * 0.05,
+        wobbleAmount: 2 + Math.random() * 3,
+        depth: depth
+    };
+}
+
+function updateUpperBlizzard() {
+    const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+    const inUpperGroundView = isGroundView && !inUnderworldView;
+    
+    // Check if disabled, not in upper ground view, or at edge (Niflheim has its own cold)
+    if (!inUpperGroundView || !upperBlizzardEnabled || isEdgeView) {
+        if (blizzardCtx) {
+            blizzardCtx.clearRect(0, 0, blizzardCanvas.width, blizzardCanvas.height);
+        }
+        // Reset blizzard state if disabled
+        if (!upperBlizzardEnabled) {
+            upperBlizzardIntensity = 0;
+            upperBlizzardTargetIntensity = 0;
+            upperBlizzardActive = false;
+            if (blizzardAudioPlaying) {
+                blizzardAudio.pause();
+                blizzardAudio.currentTime = 0;
+                blizzardAudioPlaying = false;
+                blizzardAudioVolume = 0;
+            }
+        }
+        return;
+    }
+    
+    // ============ CONVECTION DEATH CHECK ============
+    // Sun is dead (below 0.15) = no heat = no convection = storms die
+    if (SUN_BRIGHTNESS < BLIZZARD_SUN_DEAD_THRESHOLD) {
+        // Start death timer if not already started
+        if (upperConvectionDeathTime === 0) {
+            upperConvectionDeathTime = Date.now();
+        }
+        
+        // Check if 20 seconds have passed
+        const timeSinceDeath = Date.now() - upperConvectionDeathTime;
+        if (timeSinceDeath >= BLIZZARD_CONVECTION_DEATH_DELAY) {
+            upperConvectionDead = true;
+        }
+    } else if (SUN_BRIGHTNESS >= 0.2) {
+        // Sun recovered above 0.2 - convection can restart
+        upperConvectionDeathTime = 0;
+        upperConvectionDead = false;
+    }
+    
+    // If convection is dead, force blizzard to fade out
+    if (upperConvectionDead) {
+        upperBlizzardTargetIntensity = 0;
+        
+        // Slow fade out
+        if (upperBlizzardIntensity > 0) {
+            upperBlizzardIntensity = Math.max(0, upperBlizzardIntensity - 0.0003);
+        }
+        
+        if (upperBlizzardIntensity <= 0.01) {
+            upperBlizzardActive = false;
+            upperBlizzardIntensity = 0;
+        }
+        
+        updateBlizzardAudio();
+        drawBlizzard();
+        return;
+    }
+    
+    // ============ NORMAL BLIZZARD LOGIC ============
+    // Sun is dimmed but not dead - storms can form
+    const sunIsDimmed = SUN_BRIGHTNESS < BLIZZARD_SUN_THRESHOLD && SUN_BRIGHTNESS >= BLIZZARD_SUN_DEAD_THRESHOLD;
+    
+    if (sunIsDimmed && !sunWasDimmed) {
+        sunWasDimmed = true;
+        sunDimStartTime = Date.now();
+    } else if (!sunIsDimmed) {
+        sunWasDimmed = false;
+        sunDimStartTime = 0;
+    }
+    
+    if (sunIsDimmed) {
+        const timeSinceDim = Date.now() - sunDimStartTime;
+        
+        if (timeSinceDim >= BLIZZARD_DELAY) {
+            if (!upperBlizzardActive) {
+                upperBlizzardActive = true;
+                upperBlizzardStartTime = Date.now();
+            }
+            
+            const timeSinceStart = Date.now() - upperBlizzardStartTime;
+            upperBlizzardTargetIntensity = Math.min(1.0, timeSinceStart / BLIZZARD_FADE_IN_TIME);
+            
+            // Intensity scales with how dim the sun is
+            const dimFactor = (BLIZZARD_SUN_THRESHOLD - SUN_BRIGHTNESS) / (BLIZZARD_SUN_THRESHOLD - BLIZZARD_SUN_DEAD_THRESHOLD);
+            upperBlizzardTargetIntensity *= (0.5 + dimFactor * 0.5);
+        }
+    } else {
+        upperBlizzardTargetIntensity = 0;
+        if (upperBlizzardIntensity <= 0.01) {
+            upperBlizzardActive = false;
+        }
+    }
+    
+    const fadeSpeed = upperBlizzardTargetIntensity > upperBlizzardIntensity ? 0.002 : 0.0005;
+    
+    if (upperBlizzardIntensity < upperBlizzardTargetIntensity) {
+        upperBlizzardIntensity = Math.min(upperBlizzardTargetIntensity, upperBlizzardIntensity + fadeSpeed);
+    } else if (upperBlizzardIntensity > upperBlizzardTargetIntensity) {
+        upperBlizzardIntensity = Math.max(upperBlizzardTargetIntensity, upperBlizzardIntensity - fadeSpeed);
+    }
+    
+    updateBlizzardAudio();
+    drawBlizzard();
+}
+
+function updateBlizzardAudio() {
+    if (!blizzardAudio) return;
+    
+    const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+    const inUpperGroundView = isGroundView && !inUnderworldView;
+    
+    let targetVolume = 0;
+    if (inUpperGroundView && upperBlizzardIntensity > 0.05) {
+        targetVolume = upperBlizzardIntensity * 0.8;
+    }
+    
+    if (targetVolume > 0 && !blizzardAudioPlaying) {
+        blizzardAudio.play().then(() => {
+            blizzardAudioPlaying = true;
+        }).catch(e => {});
+    }
+    
+    const volumeSpeed = 0.01;
+    if (blizzardAudioVolume < targetVolume) {
+        blizzardAudioVolume = Math.min(targetVolume, blizzardAudioVolume + volumeSpeed);
+    } else if (blizzardAudioVolume > targetVolume) {
+        blizzardAudioVolume = Math.max(targetVolume, blizzardAudioVolume - volumeSpeed * 0.3);
+    }
+    
+    blizzardAudio.volume = blizzardAudioVolume;
+    
+    if (blizzardAudioVolume <= 0.01 && targetVolume <= 0 && blizzardAudioPlaying) {
+        blizzardAudio.pause();
+        blizzardAudio.currentTime = 0;
+        blizzardAudioPlaying = false;
+        blizzardAudioVolume = 0;
+    }
+}
+
+function drawBlizzard() {
+    if (!blizzardCtx || !blizzardCanvas) return;
+    
+    blizzardCtx.clearRect(0, 0, blizzardCanvas.width, blizzardCanvas.height);
+    
+    if (upperBlizzardIntensity <= 0.01) return;
+    
+    const w = blizzardCanvas.width;
+    const h = blizzardCanvas.height;
+    
+    // Spawn particles based on intensity
+    const targetParticles = Math.floor(BLIZZARD_MAX_PARTICLES * upperBlizzardIntensity);
+    while (blizzardParticles.length < targetParticles) {
+        blizzardParticles.push(spawnBlizzardParticle());
+    }
+    
+    // Remove excess particles gradually
+    while (blizzardParticles.length > targetParticles + 50) {
+        blizzardParticles.shift();
+    }
+    
+    // Wind variation over time
+    const time = Date.now() * 0.001;
+    const windGust = Math.sin(time * 0.5) * 8 + Math.sin(time * 1.3) * 5;
+    
+    // OPTIMIZATION: Batch all streaks with same style
+    blizzardCtx.lineCap = 'round';
+    blizzardCtx.strokeStyle = `rgba(255, 255, 255, ${upperBlizzardIntensity * 0.5})`;
+    blizzardCtx.lineWidth = 1.5;
+    
+    // Single path for ALL streaks
+    blizzardCtx.beginPath();
+    
+    for (let i = blizzardParticles.length - 1; i >= 0; i--) {
+        const p = blizzardParticles[i];
+        
+        // Update wobble
+        p.wobbleOffset += p.wobbleSpeed;
+        const wobble = Math.sin(p.wobbleOffset) * p.wobbleAmount;
+        
+        // Move particle
+        p.x += (p.speedX - windGust) * upperBlizzardIntensity;
+        p.y += (p.speedY + wobble * 0.3) * upperBlizzardIntensity;
+        
+        // Remove if off screen
+        if (p.x < -50 || p.y > h + 20) {
+            blizzardParticles.splice(i, 1);
+            continue;
+        }
+        
+        // Draw streak as simple line (NO gradient per particle)
+        const streakLength = Math.abs(p.speedX) * 0.6 * upperBlizzardIntensity;
+        blizzardCtx.moveTo(p.x, p.y);
+        blizzardCtx.lineTo(p.x - streakLength, p.y + p.speedY * 0.15);
+    }
+    
+    // ONE stroke call for ALL streaks
+    blizzardCtx.stroke();
+    
+    // Bright heads - batch these too
+    blizzardCtx.fillStyle = `rgba(255, 255, 255, ${upperBlizzardIntensity * 0.7})`;
+    blizzardCtx.beginPath();
+    
+    for (let i = 0; i < blizzardParticles.length; i++) {
+        const p = blizzardParticles[i];
+        blizzardCtx.moveTo(p.x + p.size * 0.3, p.y);
+        blizzardCtx.arc(p.x, p.y, p.size * 0.3, 0, Math.PI * 2);
+    }
+    
+    // ONE fill call for ALL heads
+    blizzardCtx.fill();
+}
+// ============ LOWER BLIZZARD SYSTEM FUNCTIONS ============
+function spawnLowerBlizzardParticle() {
+    // 80% from right (wind blowing left), 20% from top
+    const fromRight = Math.random() < 0.8;
+    
+    // Depth layers - some close (big/fast), some far (small/slow)
+    const depth = Math.random();
+    const depthScale = 0.3 + depth * 0.7; // 0.3 to 1.0
+    
+    return {
+        x: fromRight ? window.innerWidth + 10 : Math.random() * window.innerWidth,
+        y: fromRight ? Math.random() * window.innerHeight : -10,
+        size: (1 + Math.random() * 2) * depthScale,
+        speedX: -(18 + Math.random() * 12) * depthScale,
+        speedY: (1 + Math.random() * 2) * depthScale,
+        opacity: (0.3 + Math.random() * 0.5) * depthScale,
+        wobbleOffset: Math.random() * Math.PI * 2,
+        wobbleSpeed: 0.03 + Math.random() * 0.05,
+        wobbleAmount: 2 + Math.random() * 3,
+        depth: depth
+    };
+}
+
+function updateLowerBlizzard() {
+    const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+    const inLowerGroundView = isGroundView && inUnderworldView;
+    
+    // Check if disabled, not in lower ground view, or at edge (Niflheim has its own cold)
+    if (!inLowerGroundView || !lowerBlizzardEnabled || isUnderworldEdgeView) {
+        if (lowerBlizzardCtx) {
+            lowerBlizzardCtx.clearRect(0, 0, lowerBlizzardCanvas.width, lowerBlizzardCanvas.height);
+        }
+        // Reset blizzard state if disabled
+        if (!lowerBlizzardEnabled) {
+            lowerBlizzardIntensity = 0;
+            lowerBlizzardTargetIntensity = 0;
+            lowerBlizzardActive = false;
+            if (lowerBlizzardAudioPlaying) {
+                lowerBlizzardAudio.pause();
+                lowerBlizzardAudio.currentTime = 0;
+                lowerBlizzardAudioPlaying = false;
+                lowerBlizzardAudioVolume = 0;
+            }
+        }
+        return;
+    }
+    
+    // ============ CONVECTION DEATH CHECK ============
+    // Underworld sun is dead = no heat = no convection = storms die
+    if (USUN_BRIGHTNESS < BLIZZARD_SUN_DEAD_THRESHOLD) {
+        // Start death timer if not already started
+        if (lowerConvectionDeathTime === 0) {
+            lowerConvectionDeathTime = Date.now();
+        }
+        
+        // Check if 20 seconds have passed
+        const timeSinceDeath = Date.now() - lowerConvectionDeathTime;
+        if (timeSinceDeath >= BLIZZARD_CONVECTION_DEATH_DELAY) {
+            lowerConvectionDead = true;
+        }
+    } else if (USUN_BRIGHTNESS >= 0.2) {
+        // Underworld sun recovered above 0.2 - convection can restart
+        lowerConvectionDeathTime = 0;
+        lowerConvectionDead = false;
+    }
+    
+    // If convection is dead, force blizzard to fade out
+    if (lowerConvectionDead) {
+        lowerBlizzardTargetIntensity = 0;
+        
+        // Slow fade out
+        if (lowerBlizzardIntensity > 0) {
+            lowerBlizzardIntensity = Math.max(0, lowerBlizzardIntensity - 0.0003);
+        }
+        
+        if (lowerBlizzardIntensity <= 0.01) {
+            lowerBlizzardActive = false;
+            lowerBlizzardIntensity = 0;
+        }
+        
+        updateLowerBlizzardAudio();
+        drawLowerBlizzard();
+        return;
+    }
+    
+    // ============ NORMAL BLIZZARD LOGIC ============
+    // Underworld sun is dimmed but not dead - storms can form
+    const sunIsDimmed = USUN_BRIGHTNESS < BLIZZARD_SUN_THRESHOLD && USUN_BRIGHTNESS >= BLIZZARD_SUN_DEAD_THRESHOLD;
+    
+    if (sunIsDimmed && !uSunWasDimmed) {
+        uSunWasDimmed = true;
+        uSunDimStartTime = Date.now();
+    } else if (!sunIsDimmed) {
+        uSunWasDimmed = false;
+        uSunDimStartTime = 0;
+    }
+    
+    if (sunIsDimmed) {
+        const timeSinceDim = Date.now() - uSunDimStartTime;
+        
+        if (timeSinceDim >= BLIZZARD_DELAY) {
+            if (!lowerBlizzardActive) {
+                lowerBlizzardActive = true;
+                lowerBlizzardStartTime = Date.now();
+            }
+            
+            const timeSinceStart = Date.now() - lowerBlizzardStartTime;
+            lowerBlizzardTargetIntensity = Math.min(1.0, timeSinceStart / BLIZZARD_FADE_IN_TIME);
+            
+            // Intensity scales with how dim the sun is
+            const dimFactor = (BLIZZARD_SUN_THRESHOLD - USUN_BRIGHTNESS) / (BLIZZARD_SUN_THRESHOLD - BLIZZARD_SUN_DEAD_THRESHOLD);
+            lowerBlizzardTargetIntensity *= (0.5 + dimFactor * 0.5);
+        }
+    } else {
+        lowerBlizzardTargetIntensity = 0;
+        if (lowerBlizzardIntensity <= 0.01) {
+            lowerBlizzardActive = false;
+        }
+    }
+    
+    const fadeSpeed = lowerBlizzardTargetIntensity > lowerBlizzardIntensity ? 0.002 : 0.0005;
+    
+    if (lowerBlizzardIntensity < lowerBlizzardTargetIntensity) {
+        lowerBlizzardIntensity = Math.min(lowerBlizzardTargetIntensity, lowerBlizzardIntensity + fadeSpeed);
+    } else if (lowerBlizzardIntensity > lowerBlizzardTargetIntensity) {
+        lowerBlizzardIntensity = Math.max(lowerBlizzardTargetIntensity, lowerBlizzardIntensity - fadeSpeed);
+    }
+    
+    updateLowerBlizzardAudio();
+    drawLowerBlizzard();
+}
+
+function updateLowerBlizzardAudio() {
+    if (!lowerBlizzardAudio) return;
+    
+    const inUnderworldView = isUnderworldView || isUnderworldEdgeView || isUnderworldMidView || isUSunView || isUMoonView;
+    const inLowerGroundView = isGroundView && inUnderworldView;
+    
+    let targetVolume = 0;
+    if (inLowerGroundView && lowerBlizzardIntensity > 0.05) {
+        targetVolume = lowerBlizzardIntensity * 0.8;
+    }
+    
+    if (targetVolume > 0 && !lowerBlizzardAudioPlaying) {
+        lowerBlizzardAudio.play().then(() => {
+            lowerBlizzardAudioPlaying = true;
+        }).catch(e => {});
+    }
+    
+    const volumeSpeed = 0.01;
+    if (lowerBlizzardAudioVolume < targetVolume) {
+        lowerBlizzardAudioVolume = Math.min(targetVolume, lowerBlizzardAudioVolume + volumeSpeed);
+    } else if (lowerBlizzardAudioVolume > targetVolume) {
+        lowerBlizzardAudioVolume = Math.max(targetVolume, lowerBlizzardAudioVolume - volumeSpeed * 0.3);
+    }
+    
+    lowerBlizzardAudio.volume = lowerBlizzardAudioVolume;
+    
+    if (lowerBlizzardAudioVolume <= 0.01 && targetVolume <= 0 && lowerBlizzardAudioPlaying) {
+        lowerBlizzardAudio.pause();
+        lowerBlizzardAudio.currentTime = 0;
+        lowerBlizzardAudioPlaying = false;
+        lowerBlizzardAudioVolume = 0;
+    }
+}
+
+function drawLowerBlizzard() {
+    if (!lowerBlizzardCtx || !lowerBlizzardCanvas) return;
+    
+    lowerBlizzardCtx.clearRect(0, 0, lowerBlizzardCanvas.width, lowerBlizzardCanvas.height);
+    
+    if (lowerBlizzardIntensity <= 0.01) return;
+    
+    const w = lowerBlizzardCanvas.width;
+    const h = lowerBlizzardCanvas.height;
+    
+    // Spawn particles based on intensity
+    const targetParticles = Math.floor(BLIZZARD_MAX_PARTICLES * lowerBlizzardIntensity);
+    while (lowerBlizzardParticles.length < targetParticles) {
+        lowerBlizzardParticles.push(spawnLowerBlizzardParticle());
+    }
+    
+    // Remove excess particles gradually
+    while (lowerBlizzardParticles.length > targetParticles + 50) {
+        lowerBlizzardParticles.shift();
+    }
+    
+    // Wind variation over time
+    const time = Date.now() * 0.001;
+    const windGust = Math.sin(time * 0.5) * 8 + Math.sin(time * 1.3) * 5;
+    
+    // OPTIMIZATION: Batch all streaks with same style - reddish tint
+    lowerBlizzardCtx.lineCap = 'round';
+    lowerBlizzardCtx.strokeStyle = `rgba(255, 235, 235, ${lowerBlizzardIntensity * 0.5})`;
+    lowerBlizzardCtx.lineWidth = 1.5;
+    
+    // Single path for ALL streaks
+    lowerBlizzardCtx.beginPath();
+    
+    for (let i = lowerBlizzardParticles.length - 1; i >= 0; i--) {
+        const p = lowerBlizzardParticles[i];
+        
+        // Update wobble
+        p.wobbleOffset += p.wobbleSpeed;
+        const wobble = Math.sin(p.wobbleOffset) * p.wobbleAmount;
+        
+        // Move particle
+        p.x += (p.speedX - windGust) * lowerBlizzardIntensity;
+        p.y += (p.speedY + wobble * 0.3) * lowerBlizzardIntensity;
+        
+        // Remove if off screen
+        if (p.x < -50 || p.y > h + 20) {
+            lowerBlizzardParticles.splice(i, 1);
+            continue;
+        }
+        
+        // Draw streak as simple line (NO gradient per particle)
+        const streakLength = Math.abs(p.speedX) * 0.6 * lowerBlizzardIntensity;
+        lowerBlizzardCtx.moveTo(p.x, p.y);
+        lowerBlizzardCtx.lineTo(p.x - streakLength, p.y + p.speedY * 0.15);
+    }
+    
+    // ONE stroke call for ALL streaks
+    lowerBlizzardCtx.stroke();
+    
+    // Bright heads - batch these too - reddish tint
+    lowerBlizzardCtx.fillStyle = `rgba(255, 240, 240, ${lowerBlizzardIntensity * 0.7})`;
+    lowerBlizzardCtx.beginPath();
+    
+    for (let i = 0; i < lowerBlizzardParticles.length; i++) {
+        const p = lowerBlizzardParticles[i];
+        lowerBlizzardCtx.moveTo(p.x + p.size * 0.3, p.y);
+        lowerBlizzardCtx.arc(p.x, p.y, p.size * 0.3, 0, Math.PI * 2);
+    }
+    
+    // ONE fill call for ALL heads
+    lowerBlizzardCtx.fill();
 }
 
 function playLightningSound(isUpperRealm) {
@@ -4565,13 +5178,21 @@ activeLightningBolts.push({
                 const combinedMoonFactor = moonBrightnessFactor * moonInterferenceFactor;
                 
                 // Surface goes dark when either brightness is low OR interference is high
-                // Blood moon when sun is dying
-                let bloodRedFactor = 0;
-                if (displayedSunBrightness < 0.8 && displayedSunBrightness > 0.2) {
-                    bloodRedFactor = displayedSunBrightness > 0.5 
-                        ? 1 - ((displayedSunBrightness - 0.5) / 0.3)
-                        : (displayedSunBrightness - 0.2) / 0.3;
-                }
+// Blood moon when sun is dying - stays blood red even when sun is dead
+let bloodRedFactor = 0;
+if (displayedSunBrightness < 0.8) {
+    if (displayedSunBrightness <= 0.2) {
+        // Sun is dead - full blood moon
+        bloodRedFactor = 1.0;
+    } else if (displayedSunBrightness > 0.5) {
+        // Sun dimming - blood moon fading in
+        bloodRedFactor = 1 - ((displayedSunBrightness - 0.5) / 0.3);
+    } else {
+        // Sun critically dim - blood moon intensifying
+        bloodRedFactor = (0.5 - displayedSunBrightness) / 0.3 + 0.5;
+        bloodRedFactor = Math.min(1.0, bloodRedFactor);
+    }
+}
                 
                 // Fade to black as brightness slider approaches minimum (0.1)
                 const moonBlackFactor = displayedMoonBrightness < 0.2 ? Math.max(0, (displayedMoonBrightness - 0.1) / 0.1) : 1;
@@ -5136,6 +5757,7 @@ activeLightningBolts.push({
     initLowerCO2System();
     initUpperCO2System();
     initLightning();
+    initBlizzardSystem();
     initFimbulwinterAudio();
     initSliderColdAudio();
     initScreamingAudio();
@@ -6024,6 +6646,16 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
 });
         document.getElementById('toggle-horizon-button').addEventListener('click', () => { horizonVisible = !horizonVisible; horizonPlane.visible = horizonVisible; gulfLabel.visible = horizonVisible; gulfLabel2.visible = horizonVisible; document.getElementById('toggle-horizon-button').textContent = horizonVisible ? 'Hide Gulf' : 'Show Gulf'; });
         document.getElementById('toggle-ripple-button').addEventListener('click', () => { gulfRippling = !gulfRippling; document.getElementById('toggle-ripple-button').textContent = gulfRippling ? 'Stop Ripple' : 'Gulf Ripple'; document.getElementById('toggle-ripple-button').classList.toggle('active', gulfRippling); });
+                document.getElementById('toggle-upper-blizzard-button').addEventListener('click', () => {
+            upperBlizzardEnabled = !upperBlizzardEnabled;
+            document.getElementById('toggle-upper-blizzard-button').textContent = upperBlizzardEnabled ? 'Upper Blizzard ON' : 'Upper Blizzard OFF';
+            document.getElementById('toggle-upper-blizzard-button').classList.toggle('active', upperBlizzardEnabled);
+        });
+        document.getElementById('toggle-lower-blizzard-button').addEventListener('click', () => {
+            lowerBlizzardEnabled = !lowerBlizzardEnabled;
+            document.getElementById('toggle-lower-blizzard-button').textContent = lowerBlizzardEnabled ? 'Lower Blizzard ON' : 'Lower Blizzard OFF';
+            document.getElementById('toggle-lower-blizzard-button').classList.toggle('active', lowerBlizzardEnabled);
+        });
         document.getElementById('random-lightning-button').addEventListener('click', () => {
     randomLightningMode = !randomLightningMode;
     document.getElementById('random-lightning-button').textContent = randomLightningMode ? 'Lightning ON' : 'Random Lightning';
@@ -6433,6 +7065,8 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             updateLowerCO2System();
             updateUpperCO2System();
             updateLightning();
+             updateUpperBlizzard();
+            updateLowerBlizzard();
 
            
             // Apply camera shiver at edge OR from Fimbulwinter
@@ -6465,7 +7099,7 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
             // Resize cold system canvases
-        const canvasIds = ['upper-snow-canvas', 'upper-frost-canvas', 'under-snow-canvas', 'under-frost-canvas', 'fimbul-frost-canvas', 'lens-flare-canvas', 'lightning-canvas'];
+        const canvasIds = ['upper-snow-canvas', 'upper-frost-canvas', 'under-snow-canvas', 'under-frost-canvas', 'fimbul-frost-canvas', 'lens-flare-canvas', 'lightning-canvas', 'blizzard-canvas', 'lower-blizzard-canvas'];
             canvasIds.forEach(id => {
                 const canvas = document.getElementById(id);
                 if (canvas) {
