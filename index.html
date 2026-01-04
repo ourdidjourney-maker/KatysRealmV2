@@ -5623,9 +5623,9 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
     // Reset all button text to defaults
     document.getElementById('ground-view-button').textContent = 'Upper World Ground View';
     document.getElementById('underworld-view-button').textContent = 'Underworld Ground View';
-    document.getElementById('edge-view-button').textContent = 'Upper Realm Edge View';
+    document.getElementById('edge-view-button').textContent = 'Upper Realm Edge Plane View';
     document.getElementById('mid-view-button').textContent = 'Upper Realm Midplane View';
-    document.getElementById('underworld-edge-view-button').textContent = 'Underworld Edge View';
+    document.getElementById('underworld-edge-view-button').textContent = 'Underworld Edge Plane View';
     document.getElementById('underworld-mid-view-button').textContent = 'Underworld Midplane View';
     document.getElementById('sun-view-button').textContent = 'Upper Realm Sun View';
     document.getElementById('moon-view-button').textContent = 'Upper Realm Moon View';
@@ -5718,7 +5718,7 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
                 cameraTransitioning = true;
                 transitionStartTime = Date.now();
                 startUpperEdgeCold();
-                document.getElementById('edge-view-button').textContent = 'Exit Upper Mid Plane Edge View';
+                document.getElementById('edge-view-button').textContent = 'Exit Upper Edge Plane View';
                 document.getElementById('edge-view-button').classList.add('active');
             } else if (!isCurrentlyEdge) {
                 previousGroundPosition = getCurrentViewPosition();
@@ -5834,7 +5834,7 @@ document.getElementById('umoon-brightness').addEventListener('input', (e) => {
         isGroundToGroundTransition = true;
         cameraTransitioning = true;
         transitionStartTime = Date.now();
-        document.getElementById('underworld-mid-view-button').textContent = 'Exit Underworld Mid';
+        document.getElementById('underworld-mid-view-button').textContent = 'Exit Underworld Mid Plane View';
         document.getElementById('underworld-mid-view-button').classList.add('active');
     } else {
         exitToOrbit();
