@@ -3546,11 +3546,11 @@ function updateChurchAudio() {
     let targetVolume = 0;
     
 if (distToShell <= CHURCH_AUDIO_MIN_DISTANCE) {
-    targetVolume = 0.01; //volume
+    targetVolume = 0.08; //volume 
 } else if (distToShell >= CHURCH_AUDIO_MAX_DISTANCE) {
     targetVolume = 0;
 } else {
-    targetVolume = 0.01 * (1.0 - ((distToShell - CHURCH_AUDIO_MIN_DISTANCE) / (CHURCH_AUDIO_MAX_DISTANCE - CHURCH_AUDIO_MIN_DISTANCE)));
+    targetVolume = 0.08 * (1.0 - ((distToShell - CHURCH_AUDIO_MIN_DISTANCE) / (CHURCH_AUDIO_MAX_DISTANCE - CHURCH_AUDIO_MIN_DISTANCE)));
 }
     
     // ULTRA smooth volume transitions - lerp toward target
